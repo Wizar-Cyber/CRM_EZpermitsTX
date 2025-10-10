@@ -1,0 +1,349 @@
+Contexto breve:
+Proyecto React + TS con Tailwind, react-router, react-leaflet.
+Páginas clave: Leads, Map, Routes, Appointments.
+Reglas actuales que NO se pueden romper:
+
+En Leads solo se ven leads. Desde allí se envían direcciones al Map (via localStorage.selectedForMap) y no se debe mostrar mapa en Leads.
+
+Map muestra solo marcadores pasados desde Leads (o los de una ruta cargada). Desde Map se puede crear/actualizar rutas en BD.
+
+Routes lista rutas guardadas en BD y permite abrir para editar (regresa a Map con puntos cargados) y eliminar.
+
+LeadsTable mantiene todas sus funciones: selección múltiple, modal con tabs, botones (👁, ✅ que vamos a repuntar a “Asignar cita”), “Send to map”, sorting, colores por estado, toasts.
+
+No borrar ni degradar el diseño existente; mejorarlo de forma consistente.
+
+Adjunto logo de marca (usar como guía de estilo).
+
+🎨 Lineamientos de diseño
+
+Branding: Usa el logo adjunto. Tipografía “Inter” o “Nunito”.
+
+Paleta sugerida (puedes ajustar tonalidades en Tailwind config si lo ves útil):
+
+Primario: #0E3A5E (azul oscuro)
+
+Acento: #E8412D (rojo logo “EZ”)
+
+Neutros: slate/gray Tailwind
+
+Éxito: emerald Tailwind
+
+Advertencia: amber Tailwind
+
+Error: rose Tailwind
+
+Componentes: botones con rounded-2xl, sombras suaves, focus-visible:outline, estados hover/active, y dark mode opcional (fase 4).
+
+Layout: sidebar colapsable, header con logo y mini perfil, tarjetas (cards) con rounded-2xl shadow.
+
+🔐 Variables de entorno (Frontend + Backend)
+
+Frontend: VITE_API_URL ya existe.
+
+Backend (Node/Express):
+
+DATABASE_URL (o pool existente)
+
+ORS_API_KEY = (tú provees la clave real de OpenRouteService)
+
+El valor que nos diste (eyJvcmciOiI1Yj...) guárdalo como comentario; usaremos ORS_API_KEY estándar.
+
+📁 Rutas/archivos que vas a tocar (sin romper contratos)
+
+src/components/LeadsTable.tsx
+
+src/pages/MapPage.tsx
+
+src/pages/RoutesPage.tsx
+
+src/components/LeadsMap.tsx (pintar Polyline si viene route)
+
+src/components/Layout/* (sidebar/header/theme)
+
+src/pages/Dashboard.tsx (nuevo real, tarjetas + gráfico)
+
+src/pages/AppointmentsPage.tsx (con calendario react-big-calendar)
+
+backend/routes/routes.js (CRUD + integración ORS)
+
+No elimines funciones existentes; si cambias firma, respeta compatibilidad.
+
+✅ FASE 1 – Mejorar visualización actual (Leads & Map)
+1.1. Bug: Enviar varios leads al mapa
+
+Problema: con selección múltiple a veces no llegan; con “send to map” por fila sí.
+
+Acción:
+
+En LeadsTable.tsx, función sendMany:
+
+Forzar geocodificación para cada lead que no tenga lat/lng (Nominatim) en serie (no paralelices).
+
+Guardar en localStorage.selectedForMap sin sobrescribir (merge por id único).
+
+ID único: ${case_number}-${incident_address} para evitar colisiones.
+
+Al finalizar, no navegar; solo toast “Sent X cases to map”.
+
+Criterios de aceptación:
+
+En consola de Application > Local Storage se ve selectedForMap con los N items.
+
+En /map, la lista Addresses muestra esos N items y el mapa renderiza N marcadores.
+
+1.2. Marcadores coloreados
+
+En LeadsMap.tsx, según estado del lead (o p.color si llega) pintar:
+
+GREEN → marcador verde; YELLOW → amarillo; RED → rojo; default → azul.
+
+Popup al hacer click: Case #, Address, Status.
+
+1.3. MapPage
+
+Leer localStorage.selectedForMap cuando no se edita una ruta (!routeId).
+
+Mostrar lista de direcciones (quitar item = quitar marcador).
+
+Botón Save/Update route conserva estructura:
+
+payload = { name, created_by, points, route?: <geojson> }
+
+
+Asegurar que points siempre contienen { id, address, lat, lng, case_number? }.
+
+📊 FASE 2 – Dashboard inicial
+
+Nuevo Dashboard.tsx bonito con:
+
+Cards (grandes, responsive) con:
+
+Leads totales
+
+Leads nuevos (últimos 7 días)
+
+Leads en ruta (puntos totales en rutas activas)
+
+Citas próximas (hoy + siguientes 7 días)
+
+Un gráfico (Recharts) leads por estado (Green/Yellow/Red/Other).
+
+Datos:
+
+Usa endpoints reales si existen, o temporalmente usa apiGet('/api/leads?summary=1') y mapea; si no existe, mock local solo para el chart (no romper nada del backend).
+
+Estilo: cards con íconos (lucide), títulos compactos, números grandes.
+
+📅 FASE 3 – Rutas y Citas
+3.1. Citas (Appointments)
+
+Integrar react-big-calendar (vista mes/semana/día) en AppointmentsPage.tsx.
+
+Agregar cita:
+
+Desde Leads: botón ✅ deja de ser “resolved” y pasa a ser “Schedule”.
+
+Al click, abre un modal “Nueva cita” precargado: case_number, address (look-up por case si hace falta), fecha/hora, notas.
+
+Guardar en /api/appointments (si no existe, crear en backend; si no, local mock sin romper nada).
+
+Desde Appointments: buscador por case_number → trae address → completar y guardar.
+
+Criterios de aceptación:
+
+Evento creado aparece en el calendario.
+
+Desde Leads, al agendar, se muestra toast de éxito.
+
+3.2. Rutas (RoutesPage)
+
+PUT /api/routes/:id y DELETE /api/routes/:id funcionales (ya tenemos POST/GET).
+
+En la tabla:
+
+Botón Edit → /map?routeId={id} (ya lo tienes).
+
+Botón Delete con confirmación → al borrar actualiza UI.
+
+Manejar errores 404/500 con toast (notistack).
+
+🧭 FASE 4 – UX extra
+
+Sidebar colapsable con highlight activo (react-router NavLink).
+
+Toasts: instala notistack o react-hot-toast.
+
+Loaders: skeletons o spinners en listas/tablas.
+
+Dark/Light mode con clase dark (Tailwind) y toggle en header; guardar preferencia en localStorage.theme.
+
+🗺️ FASE 7 – Integración con OpenRouteService (trazar líneas)
+
+(saltamos números intermedios porque el cliente los enumeró así)
+
+Backend (backend/routes/routes.js)
+
+Implementa:
+
+POST /api/routes
+
+PUT /api/routes/:id
+
+DELETE /api/routes/:id
+
+GET /api/routes
+
+GET /api/routes/:id
+
+En POST/PUT:
+
+Validar points (mínimo 2 con lat/lng).
+
+Llamar a ORS:
+
+const coords = points.map(p => [p.lng, p.lat]);
+const orsRes = await fetch(
+  "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+  {
+    method: "POST",
+    headers: {
+      "Authorization": process.env.ORS_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ coordinates: coords })
+  }
+);
+const routeGeo = await orsRes.json();
+
+
+Guardar en Postgres: name, created_by, points (jsonb), route (jsonb).
+
+Responder { success: true, data: routeRow }.
+
+Frontend
+
+MapPage.tsx:
+
+Si viene r.route (GeoJSON FeatureCollection de ORS), pásalo a LeadsMap como route.
+
+LeadsMap.tsx:
+
+Si recibe route GeoJSON, dibujar Polyline con las coordinates (en orden).
+
+Mantener marcadores + popups.
+
+Criterio de aceptación:
+
+Al crear o actualizar ruta con ≥2 puntos, se dibuja una línea azul que los conecta.
+
+Abrir una ruta guardada vuelve a pintar marcadores + línea.
+
+🧩 Mejoras adicionales (sugerencias CRM)
+
+Buscador global (cmd+k) para ir a cases/rutas/citas rápidamente.
+
+Etiquetas en leads (chips) para clasificar prioridades.
+
+Export CSV de leads filtrados.
+
+Notas internas por lead (pequeño drawer).
+
+Historial de cambios en rutas (quién, cuándo).
+
+🔍 QA / Debug obligatorio
+
+En LeadsTable.tsx:
+
+console.log en sendOne y sendMany:
+
+Imprime item(es) antes de mergeSelectedForMap.
+
+Imprime readSelectedForMap() después.
+
+IDS únicos: ${case_number}-${incident_address}.
+
+En MapPage.tsx:
+
+Al montar cuando no hay routeId, console.log del raw de localStorage.selectedForMap y del parseo.
+
+Normalización de puntos: siempre { id, address, lat: number|null, lng: number|null, case_number? }.
+
+🧪 Criterios de aceptación por pantalla
+
+Leads
+
+Selecciono 3 leads → “Send selected to map” → selectedForMap tiene 3 items → voy a /map → veo 3 direcciones + 3 marcadores.
+
+Botón 👁 abre modal con tabs (sin cambios), botón Schedule abre modal de cita.
+
+Map
+
+Si entro sin haber enviado nada → mensaje “No addresses selected…”.
+
+Si guardo como ruta → aparece en /routes.
+
+Si edito ruta → PUT exitoso, y línea de ORS se pinta.
+
+Routes
+
+Eliminar ruta → DELETE 204/200, fila desaparece y toast éxito.
+
+Appointments
+
+Puedo crear cita desde Leads o desde Appointments; se ve en calendario.
+
+✍️ Convenciones de código
+
+TypeScript estricto.
+
+Componentes puros; hooks para fetching/estado.
+
+Tailwind classes limpias (evitar strings larguísimas repetidas → crea utilidades/cn() si es necesario).
+
+No introducir dependencias pesadas salvo las listadas:
+
+react-leaflet, leaflet
+
+recharts (o chart.js + react-chartjs-2)
+
+react-big-calendar
+
+notistack (o react-hot-toast)
+
+🧱 Esquema de tabla (Postgres)
+CREATE TABLE IF NOT EXISTS routes(
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  scheduled_on TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  points JSONB NOT NULL,
+  route  JSONB
+);
+
+🧵 Endpoints (contrato)
+
+POST /api/routes → body { name, created_by, points:[{id,address,lat,lng,case_number?}] } → calcula route con ORS → guarda → { success, data }.
+
+PUT /api/routes/:id → mismo body → recalcula route si cambian points.
+
+DELETE /api/routes/:id → 200/204.
+
+GET /api/routes → { data:[{id,name,created_by,created_at,scheduled_on}] }.
+
+GET /api/routes/:id → fila completa con points y route.
+
+🚀 Entregables
+
+Código actualizado (componentes y rutas) con comentarios TODO/NOTE claros.
+
+Un archivo README-updates.md con:
+
+Cómo setear ORS_API_KEY.
+
+Cómo probar cada fase (pasos reproducibles).
+
+GIFs/PNG cortos (opcional) del funcionamiento.
+
+No romper: el modal de Lead, el flujo localStorage.selectedForMap, ni el login.
