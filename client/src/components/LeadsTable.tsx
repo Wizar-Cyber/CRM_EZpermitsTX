@@ -1,17 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Eye, CheckCircle, MapPin, ArrowUpDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-
-// TODO: remove mock functionality - this is placeholder data
-const mockLeads = [
-  { id: 1, case_number: "C-2024-001", incident_address: "123 Main St, City, State", status: "GREEN", priority: "High", date: "2024-01-15" },
-  { id: 2, case_number: "C-2024-002", incident_address: "456 Oak Ave, City, State", status: "YELLOW", priority: "Medium", date: "2024-01-16" },
-  { id: 3, case_number: "C-2024-003", incident_address: "789 Pine Rd, City, State", status: "RED", priority: "Low", date: "2024-01-17" },
-  { id: 4, case_number: "C-2024-004", incident_address: "321 Elm St, City, State", status: "GREEN", priority: "High", date: "2024-01-18" },
-  { id: 5, case_number: "C-2024-005", incident_address: "654 Maple Dr, City, State", status: "YELLOW", priority: "Medium", date: "2024-01-19" },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Lead } from "@shared/schema";
 
 const statusColors = {
   GREEN: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -24,9 +18,39 @@ export function LeadsTable() {
   const [sortField, setSortField] = useState<string>("case_number");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  const { data, isLoading } = useQuery<{ data: Lead[] }>({
+    queryKey: ['/api/leads'],
+  });
+
+  const leads = data?.data || [];
+
+  // Client-side sorting
+  const sortedLeads = useMemo(() => {
+    if (!leads.length) return [];
+    
+    return [...leads].sort((a, b) => {
+      let aVal: any = a[sortField as keyof Lead];
+      let bVal: any = b[sortField as keyof Lead];
+      
+      // Handle date sorting
+      if (sortField === "date" && aVal && bVal) {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+      
+      // Handle string sorting
+      if (typeof aVal === "string") aVal = aVal.toLowerCase();
+      if (typeof bVal === "string") bVal = bVal.toLowerCase();
+      
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [leads, sortField, sortDirection]);
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedLeads(mockLeads.map(lead => lead.id));
+      setSelectedLeads(sortedLeads.map(lead => lead.id));
     } else {
       setSelectedLeads([]);
     }
@@ -51,7 +75,7 @@ export function LeadsTable() {
 
   const handleSendToMap = () => {
     console.log("Send to map clicked", selectedLeads);
-    // TODO: Implement localStorage.selectedForMap logic
+    // TODO: Implement localStorage.selectedForMap logic (next task)
   };
 
   const handleViewDetails = (leadId: number) => {
@@ -63,6 +87,28 @@ export function LeadsTable() {
     console.log("Schedule appointment for lead:", leadId);
     // TODO: Open appointment modal
   };
+
+  const formatDate = (date: Date | string) => {
+    return new Date(date).toLocaleDateString();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <div className="rounded-2xl border border-border bg-card overflow-hidden p-4">
+          <Skeleton className="h-12 w-full mb-2" />
+          <Skeleton className="h-12 w-full mb-2" />
+          <Skeleton className="h-12 w-full mb-2" />
+          <Skeleton className="h-12 w-full mb-2" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -85,7 +131,7 @@ export function LeadsTable() {
             <tr>
               <th className="p-4 text-left">
                 <Checkbox 
-                  checked={selectedLeads.length === mockLeads.length}
+                  checked={selectedLeads.length === sortedLeads.length && sortedLeads.length > 0}
                   onCheckedChange={handleSelectAll}
                   data-testid="checkbox-select-all"
                 />
@@ -123,7 +169,7 @@ export function LeadsTable() {
             </tr>
           </thead>
           <tbody>
-            {mockLeads.map((lead) => (
+            {sortedLeads.map((lead) => (
               <tr 
                 key={lead.id} 
                 className={`border-t border-border hover-elevate ${
@@ -146,7 +192,7 @@ export function LeadsTable() {
                   </Badge>
                 </td>
                 <td className="p-4">{lead.priority}</td>
-                <td className="p-4 text-muted-foreground">{lead.date}</td>
+                <td className="p-4 text-muted-foreground">{formatDate(lead.date)}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
                     <Button 
