@@ -17,14 +17,24 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-// Leads table
-export const leads = pgTable("leads", {
+// Leads table - matches houston_311_bcv structure from original app
+export const leads = pgTable("houston_311_bcv", {
   id: serial("id").primaryKey(),
   case_number: text("case_number").notNull().unique(),
   incident_address: text("incident_address").notNull(),
+  created_date_local: timestamp("created_date_local"),
+  resolve_by_time: timestamp("resolve_by_time"),
+  ava_case_type: text("ava_case_type"),
+  state_code_name: text("state_code_name"),
+  zip_code: text("zip_code"),
+  created_date_utc: timestamp("created_date_utc"),
+  channel: text("channel"),
+  extract_date: timestamp("extract_date"),
+  latest_case_notes: text("latest_case_notes"),
+  created_date: timestamp("created_date"),
   status: text("status").notNull().default("GREEN"), // GREEN, YELLOW, RED
-  priority: text("priority").notNull().default("Medium"), // High, Medium, Low
-  date: timestamp("date").notNull().defaultNow(),
+  description: text("description"),
+  resolution: text("resolution"),
   lat: doublePrecision("lat"),
   lng: doublePrecision("lng"),
   created_at: timestamp("created_at").notNull().defaultNow(),
@@ -45,6 +55,7 @@ export const routes = pgTable("routes", {
   created_by: text("created_by").notNull(),
   scheduled_on: timestamp("scheduled_on").notNull().defaultNow(),
   created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at"),
   points: jsonb("points").notNull(), // Array of {id, address, lat, lng, case_number?}
   route: jsonb("route"), // GeoJSON FeatureCollection from ORS
 });
@@ -52,6 +63,7 @@ export const routes = pgTable("routes", {
 export const insertRouteSchema = createInsertSchema(routes).omit({
   id: true,
   created_at: true,
+  updated_at: true,
 });
 
 export type InsertRoute = z.infer<typeof insertRouteSchema>;

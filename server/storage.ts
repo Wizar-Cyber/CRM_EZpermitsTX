@@ -6,9 +6,16 @@ import {
   type Route,
   type InsertRoute,
   type Appointment,
-  type InsertAppointment
+  type InsertAppointment,
+  users,
+  leads,
+  routes,
+  appointments
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { eq, sql as sqlTag } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -41,185 +48,195 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: number): Promise<boolean>;
+  
+  // Dashboard
+  getDashboardStats(): Promise<{
+    totalLeads: number;
+    newLeads: number;
+    leadsInRoute: number;
+    upcomingAppointments: number;
+    leadsByStatus: { status: string; count: number }[];
+  }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private leads: Map<number, Lead>;
-  private routes: Map<number, Route>;
-  private appointments: Map<number, Appointment>;
-  private leadIdCounter: number;
-  private routeIdCounter: number;
-  private appointmentIdCounter: number;
+// PostgreSQL Storage using Drizzle ORM
+export class DrizzleStorage implements IStorage {
+  private db;
 
   constructor() {
-    this.users = new Map();
-    this.leads = new Map();
-    this.routes = new Map();
-    this.appointments = new Map();
-    this.leadIdCounter = 1;
-    this.routeIdCounter = 1;
-    this.appointmentIdCounter = 1;
-    
-    // Initialize with some mock leads for testing
-    this.initializeMockLeads();
-  }
-
-  private initializeMockLeads() {
-    const mockLeads: InsertLead[] = [
-      { case_number: "C-2024-001", incident_address: "123 Main St, City, State", status: "GREEN", priority: "High", date: new Date("2024-01-15") },
-      { case_number: "C-2024-002", incident_address: "456 Oak Ave, City, State", status: "YELLOW", priority: "Medium", date: new Date("2024-01-16") },
-      { case_number: "C-2024-003", incident_address: "789 Pine Rd, City, State", status: "RED", priority: "Low", date: new Date("2024-01-17") },
-      { case_number: "C-2024-004", incident_address: "321 Elm St, City, State", status: "GREEN", priority: "High", date: new Date("2024-01-18") },
-      { case_number: "C-2024-005", incident_address: "654 Maple Dr, City, State", status: "YELLOW", priority: "Medium", date: new Date("2024-01-19") },
-    ];
-    
-    mockLeads.forEach(lead => {
-      this.createLead(lead);
-    });
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is not set");
+    }
+    const sql = neon(databaseUrl);
+    this.db = drizzle(sql);
   }
 
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await this.db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await this.db.select().from(users).where(eq(users.username, username));
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const result = await this.db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
   // Lead methods
   async getAllLeads(): Promise<Lead[]> {
-    return Array.from(this.leads.values());
+    return await this.db.select().from(leads);
   }
 
   async getLeadById(id: number): Promise<Lead | undefined> {
-    return this.leads.get(id);
+    const result = await this.db.select().from(leads).where(eq(leads.id, id));
+    return result[0];
   }
 
   async getLeadByCaseNumber(caseNumber: string): Promise<Lead | undefined> {
-    return Array.from(this.leads.values()).find(
-      (lead) => lead.case_number === caseNumber,
-    );
+    const result = await this.db.select().from(leads).where(eq(leads.case_number, caseNumber));
+    return result[0];
   }
 
   async createLead(insertLead: InsertLead): Promise<Lead> {
-    const id = this.leadIdCounter++;
-    const lead: Lead = {
-      id,
-      case_number: insertLead.case_number,
-      incident_address: insertLead.incident_address,
-      status: insertLead.status ?? "GREEN",
-      priority: insertLead.priority ?? "Medium",
-      date: insertLead.date ?? new Date(),
-      lat: insertLead.lat ?? null,
-      lng: insertLead.lng ?? null,
-      created_at: new Date(),
-    };
-    this.leads.set(id, lead);
-    return lead;
+    const result = await this.db.insert(leads).values(insertLead).returning();
+    return result[0];
   }
 
   async updateLead(id: number, updateData: Partial<InsertLead>): Promise<Lead | undefined> {
-    const lead = this.leads.get(id);
-    if (!lead) return undefined;
-    
-    const updatedLead = { ...lead, ...updateData };
-    this.leads.set(id, updatedLead);
-    return updatedLead;
+    const result = await this.db.update(leads).set(updateData).where(eq(leads.id, id)).returning();
+    return result[0];
   }
 
   async deleteLead(id: number): Promise<boolean> {
-    return this.leads.delete(id);
+    const result = await this.db.delete(leads).where(eq(leads.id, id)).returning();
+    return result.length > 0;
   }
 
   // Route methods
   async getAllRoutes(): Promise<Route[]> {
-    return Array.from(this.routes.values());
+    return await this.db.select().from(routes);
   }
 
   async getRouteById(id: number): Promise<Route | undefined> {
-    return this.routes.get(id);
+    const result = await this.db.select().from(routes).where(eq(routes.id, id));
+    return result[0];
   }
 
   async createRoute(insertRoute: InsertRoute): Promise<Route> {
-    const id = this.routeIdCounter++;
-    const route: Route = {
-      id,
-      name: insertRoute.name,
-      created_by: insertRoute.created_by,
-      scheduled_on: insertRoute.scheduled_on ?? new Date(),
-      points: insertRoute.points,
-      route: insertRoute.route ?? null,
-      created_at: new Date(),
-    };
-    this.routes.set(id, route);
-    return route;
+    const result = await this.db.insert(routes).values(insertRoute).returning();
+    return result[0];
   }
 
   async updateRoute(id: number, updateData: Partial<InsertRoute>): Promise<Route | undefined> {
-    const route = this.routes.get(id);
-    if (!route) return undefined;
-    
-    const updatedRoute = { ...route, ...updateData };
-    this.routes.set(id, updatedRoute);
-    return updatedRoute;
+    const result = await this.db.update(routes).set({
+      ...updateData,
+      updated_at: new Date()
+    }).where(eq(routes.id, id)).returning();
+    return result[0];
   }
 
   async deleteRoute(id: number): Promise<boolean> {
-    return this.routes.delete(id);
+    const result = await this.db.delete(routes).where(eq(routes.id, id)).returning();
+    return result.length > 0;
   }
 
   // Appointment methods
   async getAllAppointments(): Promise<Appointment[]> {
-    return Array.from(this.appointments.values());
+    return await this.db.select().from(appointments);
   }
 
   async getAppointmentById(id: number): Promise<Appointment | undefined> {
-    return this.appointments.get(id);
+    const result = await this.db.select().from(appointments).where(eq(appointments.id, id));
+    return result[0];
   }
 
   async getAppointmentsByCaseNumber(caseNumber: string): Promise<Appointment[]> {
-    return Array.from(this.appointments.values()).filter(
-      (appointment) => appointment.case_number === caseNumber,
-    );
+    return await this.db.select().from(appointments).where(eq(appointments.case_number, caseNumber));
   }
 
   async createAppointment(insertAppointment: InsertAppointment): Promise<Appointment> {
-    const id = this.appointmentIdCounter++;
-    const appointment: Appointment = {
-      id,
-      case_number: insertAppointment.case_number,
-      address: insertAppointment.address,
-      scheduled_at: insertAppointment.scheduled_at,
-      notes: insertAppointment.notes ?? null,
-      created_at: new Date(),
-    };
-    this.appointments.set(id, appointment);
-    return appointment;
+    const result = await this.db.insert(appointments).values(insertAppointment).returning();
+    return result[0];
   }
 
   async updateAppointment(id: number, updateData: Partial<InsertAppointment>): Promise<Appointment | undefined> {
-    const appointment = this.appointments.get(id);
-    if (!appointment) return undefined;
-    
-    const updatedAppointment = { ...appointment, ...updateData };
-    this.appointments.set(id, updatedAppointment);
-    return updatedAppointment;
+    const result = await this.db.update(appointments).set(updateData).where(eq(appointments.id, id)).returning();
+    return result[0];
   }
 
   async deleteAppointment(id: number): Promise<boolean> {
-    return this.appointments.delete(id);
+    const result = await this.db.delete(appointments).where(eq(appointments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getDashboardStats(): Promise<{
+    totalLeads: number;
+    newLeads: number;
+    leadsInRoute: number;
+    upcomingAppointments: number;
+    leadsByStatus: { status: string; count: number }[];
+  }> {
+    // Get total leads
+    const totalLeadsResult = await this.db.select({ count: sqlTag<number>`count(*)` }).from(leads);
+    const totalLeads = Number(totalLeadsResult[0]?.count || 0);
+
+    // Get new leads (last 7 days) - using created_date_local which is the actual lead creation date
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const newLeadsResult = await this.db.select({ count: sqlTag<number>`count(*)` })
+      .from(leads)
+      .where(sqlTag`${leads.created_date_local} IS NOT NULL AND ${leads.created_date_local} >= ${sevenDaysAgo}`);
+    const newLeads = Number(newLeadsResult[0]?.count || 0);
+
+    // Get leads in routes (count distinct lead ids in route points)
+    const routesData = await this.db.select({ points: routes.points }).from(routes);
+    const uniqueLeadIds = new Set<string>();
+    routesData.forEach(route => {
+      const points = route.points as any[];
+      if (Array.isArray(points)) {
+        points.forEach(point => {
+          if (point.case_number) {
+            uniqueLeadIds.add(point.case_number);
+          }
+        });
+      }
+    });
+    const leadsInRoute = uniqueLeadIds.size;
+
+    // Get upcoming appointments (next 7 days)
+    const nextSevenDays = new Date();
+    nextSevenDays.setDate(nextSevenDays.getDate() + 7);
+    const upcomingApptsResult = await this.db.select({ count: sqlTag<number>`count(*)` })
+      .from(appointments)
+      .where(sqlTag`${appointments.scheduled_at} >= ${new Date()} AND ${appointments.scheduled_at} <= ${nextSevenDays}`);
+    const upcomingAppointments = Number(upcomingApptsResult[0]?.count || 0);
+
+    // Get leads by status
+    const leadsByStatusResult = await this.db.select({
+      status: leads.status,
+      count: sqlTag<number>`count(*)`
+    }).from(leads).groupBy(leads.status);
+
+    const leadsByStatus = leadsByStatusResult.map(row => ({
+      status: row.status || 'UNKNOWN',
+      count: Number(row.count || 0)
+    }));
+
+    return {
+      totalLeads,
+      newLeads,
+      leadsInRoute,
+      upcomingAppointments,
+      leadsByStatus
+    };
   }
 }
 
-export const storage = new MemStorage();
+// Use DrizzleStorage with PostgreSQL
+export const storage = new DrizzleStorage();

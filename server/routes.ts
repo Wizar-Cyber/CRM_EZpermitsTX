@@ -107,41 +107,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats endpoint
   app.get("/api/dashboard/stats", async (_req, res) => {
     try {
-      const leads = await storage.getAllLeads();
-      const routes = await storage.getAllRoutes();
-      const appointments = await storage.getAllAppointments();
-      
-      const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
-      const newLeads = leads.filter(lead => lead.created_at >= sevenDaysAgo).length;
-      
-      // Count points in all routes
-      const leadsInRoute = routes.reduce((acc, route) => {
-        const points = route.points as any[];
-        return acc + (points?.length || 0);
-      }, 0);
-      
-      const upcomingAppointments = appointments.filter(apt => {
-        const aptDate = new Date(apt.scheduled_at);
-        return aptDate >= now && aptDate <= sevenDaysFromNow;
-      }).length;
-      
-      // Status breakdown
-      const statusBreakdown = {
-        GREEN: leads.filter(l => l.status === 'GREEN').length,
-        YELLOW: leads.filter(l => l.status === 'YELLOW').length,
-        RED: leads.filter(l => l.status === 'RED').length,
-        OTHER: leads.filter(l => !['GREEN', 'YELLOW', 'RED'].includes(l.status)).length,
-      };
+      const stats = await storage.getDashboardStats();
+      const statusBreakdown = stats.leadsByStatus.reduce((acc, item) => {
+        acc[item.status] = item.count;
+        return acc;
+      }, {} as Record<string, number>);
       
       res.json({
         data: {
-          totalLeads: leads.length,
-          newLeads,
-          leadsInRoute,
-          upcomingAppointments,
+          totalLeads: stats.totalLeads,
+          newLeads: stats.newLeads,
+          leadsInRoute: stats.leadsInRoute,
+          upcomingAppointments: stats.upcomingAppointments,
           statusBreakdown,
         }
       });
