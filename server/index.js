@@ -10,6 +10,8 @@ import authRoutes from './routes/auth.js';
 import leadsRoutes from './routes/leads.js';
 import routesRoutes from './routes/routes.js';
 import settingsRouter from "./routes/settings.js";
+import clientesRouter from "./routes/clientes.js";
+
 
 
 
@@ -25,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/routes', routesRoutes);
 app.use("/api/settings", settingsRouter);
+app.use("/api/clientes", clientesRouter);
 
 // Perfil del usuario autenticado
 app.get("/api/me", authenticate, async (req, res) => {

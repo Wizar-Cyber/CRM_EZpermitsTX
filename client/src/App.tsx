@@ -21,6 +21,7 @@ import RoutesPage from "@/pages/RoutesPage";
 import AppointmentsPage from "@/pages/AppointmentsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
+import ClientsPage from "@/pages/ClientsPage";
 
 function AuthGate() {
   const { isAuthenticated, isLoading, logout } = useAuth();
@@ -88,9 +89,12 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
 
+
       {/* Rutas Privadas */}
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/leads" component={LeadsPage} />
+      <Route path="/clients" component={ClientsPage} />
+
       <Route path="/map" component={MapPage} />
       {/* ✅ Permitir editar rutas específicas */}
       <Route path="/map/:routeId" component={MapPage} />
