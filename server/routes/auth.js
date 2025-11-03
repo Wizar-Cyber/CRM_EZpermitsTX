@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../db.js'; // Se usa 'import' y se añade '.js' al final
 import { body, validationResult } from 'express-validator';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -82,11 +83,20 @@ router.post(
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      // 3. Si todo es correcto, crear y firmar un token JWT
-      const payload = { userId: user.id, role: user.role };
+      // ✅ 3. Crear y firmar un token JWT completo con email y role
+      const payload = {
+        id: user.id,
+        email: user.email,
+        role: user.role || "user",
+      };
+
       const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-      
-      res.json({ message: 'Login successful', token: token });
+
+      res.json({
+        message: 'Login successful',
+        token,
+        user: { id: user.id, email: user.email, role: user.role },
+      });
 
     } catch (error) {
       console.error(error);
@@ -95,5 +105,19 @@ router.post(
   }
 );
 
-export default router; // Se usa 'export default'
+// --- RUTA DE VERIFICACIÓN DEL TOKEN ---
+// GET /api/auth/verify
+router.get("/verify", authenticate, (req, res) => {
+  // Si llegamos aquí, el middleware authenticate validó el token y colocó el payload en req.user
+  const payload = req.user || {};
+  res.json({
+    valid: true,
+    user: {
+      id: payload.id ?? payload.userId ?? null,
+      email: payload.email ?? null,
+      role: payload.role ?? null,
+    },
+  });
+});
 
+export default router;

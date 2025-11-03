@@ -174,9 +174,7 @@ export default function RegisterPage() {
       <div className="flex items-center justify-center py-12 px-4">
         <Card className="w-full max-w-lg p-8 shadow-2xl">
             <CardHeader className="text-center p-0 mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-primary" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12.001 1.993l-10 7.5a1 1 0 00-.5 1.5v10a1 1 0 001 1h5v-6a1 1 0 011-1h3a1 1 0 011 1v6h5a1 1 0 001-1v-10a1 1 0 00-.5-1.5l-10-7.5zm5.5 17h-3v-6a3 3 0 00-3-3h-3a3 3 0 00-3 3v6h-3v-8.812l8-6 8 6v8.812h-3zM8.5 12.5a.5.5 0 01.5-.5h6a.5.5 0 01.5.5v4a.5.5 0 01-.5.5h-6a.5.5 0 01-.5-.5v-4zm1 .5v3h5v-3h-5zm3.646 1.146a.5.5 0 01.708 0l1 1a.5.5 0 01-.708.708l-1-1a.5.5 0 010-.708zm-2.854.354a.5.5 0 00-.708 0l-1 1a.5.5 0 00.708.708l1-1a.5.5 0 000-.708z"/>
-                </svg>
+                <img src="/src/public/logo.png"  alt="Logo de tu empresa" className="h-16 w-16 mx-auto" />
                 <CardTitle className="text-3xl font-bold mt-4">Create an Account</CardTitle>
                 <CardDescription className="mt-2 text-balance">Enter your information to create a new account.</CardDescription>
             </CardHeader>

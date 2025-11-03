@@ -1,15 +1,18 @@
 import { MapView } from "@/components/MapView";
-import { useSearchParams } from "wouter";
+import { useRoute } from "wouter"; 
 
 export default function MapPage() {
-  const [params] = useSearchParams();
-  const routeId = params.get("routeId"); // si vienes de /map?routeId=3
+  // Wouter nos permite hacer match a la ruta para obtener los parámetros
+  const [match, params] = useRoute("/map/:routeId");
+
+  const routeId = match ? params.routeId : undefined;
 
   return (
     <div className="p-4">
       <h2 className="text-2xl font-semibold mb-4">Map View</h2>
       <div className="h-[calc(100vh-8rem)] w-full">
-         <MapView routeId={routeId || undefined} />
+        {/* La lógica aquí no cambia, sigue pasando el routeId a MapView */}
+        <MapView routeId={routeId} />
       </div>
     </div>
   );
