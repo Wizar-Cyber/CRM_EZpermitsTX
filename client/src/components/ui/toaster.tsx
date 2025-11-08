@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useToast } from "@/features/hooks/use-toast"
+=======
+import { useToast } from "@/hooks/use-toast"
+>>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 import {
   Toast,
   ToastClose,

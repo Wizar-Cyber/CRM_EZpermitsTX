@@ -1,4 +1,5 @@
 import { RoutesTable } from "@/components/RoutesTable";
+<<<<<<< HEAD
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiDelete } from "@/lib/api";
 import { useLocation } from "wouter";
@@ -80,4 +81,9 @@ export default function RoutesPage() {
       onDeleteConfirm={handleDeleteConfirm}
     />
   );
+=======
+
+export default function RoutesPage() {
+  return <RoutesTable />;
+>>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 }

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/pages/LeadsPage.tsx
 import { LeadsTable } from "@/components/LeadsTable";
 import { useEffect } from "react";
@@ -34,4 +35,10 @@ export default function LeadsPage() {
       <LeadsTable />
     </div>
   );
+=======
+import { LeadsTable } from "@/components/LeadsTable";
+
+export default function LeadsPage() {
+  return <LeadsTable />;
+>>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 }
