@@ -1,27 +1,33 @@
+// src/pages/LeadsPage.tsx
 import { LeadsTable } from "@/components/LeadsTable";
 import { useEffect } from "react";
-import { api } from "@/lib/api";
-import { toast } from "@/features/hooks/use-toast";
+import { apiGet } from "@/lib/api";
 
-export function LeadsPage() {
+// ✅ Usa el hook de shadcn/ui (si tu proyecto lo tiene)
+import { useToast } from "@/features/hooks/use-toast";
+
+export default function LeadsPage() {
+  const { toast } = useToast();
+
   useEffect(() => {
-    api("/leads")
-      .then((data) => {
+    (async () => {
+      try {
+        const data = await apiGet<{ data: any[] }>("/leads");
         console.log("✅ Leads fetched:", data);
         toast({
           title: "Leads loaded successfully",
-          description: `Retrieved ${data?.data?.length || 0} records.`,
+          description: `Retrieved ${data?.data?.length ?? 0} records.`,
         });
-      })
-      .catch((err) => {
+      } catch (err: any) {
         console.error("❌ Error loading leads:", err);
         toast({
           title: "Error loading leads",
-          description: "Unable to connect to the server.",
+          description: err?.message || "Unable to connect to the server.",
           variant: "destructive",
         });
-      });
-  }, []);
+      }
+    })();
+  }, [toast]);
 
   return (
     <div className="p-6">
@@ -29,5 +35,3 @@ export function LeadsPage() {
     </div>
   );
 }
-
-export default LeadsPage;

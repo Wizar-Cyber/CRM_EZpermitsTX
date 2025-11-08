@@ -16,7 +16,10 @@ import {
   Search,
   CalendarPlus,
   CalendarDays,
+  Save,
+  Edit3,
 } from "lucide-react";
+import { AppointmentModal } from "@/components/AppointmentModal";
 
 /* ---------- TYPES ---------- */
 interface Client {
@@ -31,7 +34,7 @@ interface Client {
   source?: string;
   assigned_name?: string;
   case_number?: string;
-  resolution?: string;
+  description?: string;
   created_at?: string;
 }
 
@@ -53,8 +56,7 @@ interface Note {
 interface Appointment {
   id: number;
   title: string;
-  start_time: string;
-  end_time: string;
+  date_time?: string | null;
   address: string;
   status: string;
   note?: string;
@@ -74,6 +76,10 @@ export default function ClientsPage() {
   const [showModal, setShowModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Estados de edición de notas
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editedNoteText, setEditedNoteText] = useState("");
 
   const columns = ["pending", "visited", "purchased", "resolved"];
 
@@ -145,6 +151,30 @@ export default function ClientsPage() {
     }
   };
 
+  const handleUpdateNote = async (noteId: number, updated: string) => {
+    if (!selected) return;
+    try {
+      await apiPut(`/clientes/${selected.id}/notas/${noteId}`, { nota: updated });
+      fetchDetails(selected.id);
+      toast.success("Note updated");
+      setEditingNoteId(null);
+    } catch {
+      toast.error("Error updating note");
+    }
+  };
+
+  const handleDeleteNote = async (noteId: number) => {
+    if (!selected) return;
+    if (!confirm("Delete this note?")) return;
+    try {
+      await apiDelete(`/clientes/${selected.id}/notas/${noteId}`);
+      setNotes((prev) => prev.filter((n) => n.id !== noteId));
+      toast.success("Note deleted");
+    } catch {
+      toast.error("Error deleting note");
+    }
+  };
+
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase();
     return (
@@ -156,6 +186,7 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <header className="flex justify-between items-center">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <UserCircle2 className="w-8 h-8 text-primary" />
@@ -166,6 +197,7 @@ export default function ClientsPage() {
         </Button>
       </header>
 
+      {/* Search */}
       <div className="flex items-center gap-2 mb-4">
         <Search className="w-4 h-4 text-gray-500" />
         <Input
@@ -235,8 +267,16 @@ export default function ClientsPage() {
 
       {/* ---------- CLIENT DETAILS MODAL ---------- */}
       {selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto relative">
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelected(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => setSelected(null)}
               className="absolute top-3 right-3 text-gray-500 hover:text-black"
@@ -255,10 +295,8 @@ export default function ClientsPage() {
               </p>
               {selected.case_number && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                  <p className="font-semibold">
-                    Case #: {selected.case_number}
-                  </p>
-                  <p className="text-sm">{selected.resolution}</p>
+                  <p className="font-semibold">Case #: {selected.case_number}</p>
+                  <p className="text-sm">{selected.description}</p>
                 </div>
               )}
             </div>
@@ -266,51 +304,87 @@ export default function ClientsPage() {
             <hr className="my-4" />
 
             {/* Notes */}
-            <h3 className="font-semibold flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" /> Notes
-            </h3>
-            <Textarea
-              placeholder="Write a new note..."
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-            />
-            <Button className="mt-2" onClick={handleAddNote}>
-              Save Note
-            </Button>
+            <div className="mt-4 border-t pt-3">
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" /> Notes
+              </h4>
 
-            <div className="mt-4 space-y-3">
-              {notes.map((n) => (
-                <Card key={n.id} className="p-3">
-                  <p className="text-sm">{n.nota}</p>
-                  <small className="text-gray-500">
-                    {n.author_name} • {new Date(n.fecha).toLocaleString()}
-                  </small>
-                </Card>
-              ))}
-            </div>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="Add a note..."
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                />
+                <Button size="sm" onClick={handleAddNote}>
+                  Add
+                </Button>
+              </div>
 
-            {/* Events */}
-            {events.length > 0 && (
-              <>
-                <hr className="my-4" />
-                <h3 className="font-semibold flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4" /> Events
-                </h3>
-                <div className="mt-2 space-y-3">
-                  {events.map((e) => (
-                    <Card
-                      key={e.id}
-                      className="p-3 border-l-4 border-primary/60"
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {notes.length > 0 ? (
+                  notes.map((n) => (
+                    <div
+                      key={n.id}
+                      className="p-2 bg-gray-50 rounded-md text-sm flex justify-between items-start"
                     >
-                      <p className="text-sm">{e.descripcion}</p>
-                      <small className="text-gray-500">
-                        {e.author_name} • {new Date(e.fecha).toLocaleString()}
-                      </small>
-                    </Card>
-                  ))}
-                </div>
-              </>
-            )}
+                      <div className="flex-1 mr-2">
+                        {editingNoteId === n.id ? (
+                          <Textarea
+                            className="text-sm w-full"
+                            value={editedNoteText}
+                            onChange={(e) =>
+                              setEditedNoteText(e.target.value)
+                            }
+                          />
+                        ) : (
+                          <>
+                            <p>{n.nota}</p>
+                            <div className="text-xs text-gray-500">
+                              {n.author_name || "System"} •{" "}
+                              {new Date(n.fecha).toLocaleString()}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1">
+                        {editingNoteId === n.id ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleUpdateNote(n.id, editedNoteText)
+                            }
+                          >
+                            <Save className="w-4 h-4 text-green-600" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingNoteId(n.id);
+                              setEditedNoteText(n.nota);
+                            }}
+                          >
+                            <Edit3 className="w-4 h-4 text-blue-500" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteNote(n.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-400">No notes yet</p>
+                )}
+              </div>
+            </div>
 
             {/* Appointments */}
             <hr className="my-4" />
@@ -330,11 +404,18 @@ export default function ClientsPage() {
             {appointments.length > 0 ? (
               <div className="space-y-2">
                 {appointments.map((a) => (
-                  <Card key={a.id} className="p-3">
+                  <Card
+                    key={a.id}
+                    className="p-3 cursor-pointer hover:bg-gray-50"
+                    onClick={() =>
+                      (window.location.href = `/appointments?id=${a.id}`)
+                    }
+                  >
                     <p className="font-medium">{a.title}</p>
                     <p className="text-sm text-gray-600">
-                      {new Date(a.start_time).toLocaleString()} -{" "}
-                      {new Date(a.end_time).toLocaleString()}
+                      {a.date_time
+                        ? new Date(a.date_time).toLocaleString()
+                        : "No date"}
                     </p>
                     <p className="text-sm">{a.address}</p>
                     {a.note && (
@@ -348,6 +429,30 @@ export default function ClientsPage() {
               </div>
             ) : (
               <p className="text-sm text-gray-400">No appointments yet</p>
+            )}
+
+            {/* Events */}
+            {events.length > 0 && (
+              <>
+                <hr className="my-4" />
+                <h3 className="font-semibold flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" /> Events
+                </h3>
+                <div className="mt-2 space-y-3">
+                  {events.map((e) => (
+                    <Card
+                      key={e.id}
+                      className="p-3 border-l-4 border-primary/60"
+                    >
+                      <p className="text-sm">{e.descripcion}</p>
+                      <small className="text-gray-500">
+                        {e.author_name} •{" "}
+                        {new Date(e.fecha).toLocaleString()}
+                      </small>
+                    </Card>
+                  ))}
+                </div>
+              </>
             )}
 
             <Button
@@ -368,11 +473,12 @@ export default function ClientsPage() {
         />
       )}
 
-      {showAppointmentModal && (
+      {showAppointmentModal && selected && (
         <AppointmentModal
+          event={null}
           client={selected}
           onClose={() => setShowAppointmentModal(false)}
-          onSuccess={() => fetchDetails(selected?.id || 0)}
+          onSave={() => fetchDetails(selected.id)}
         />
       )}
     </div>
@@ -390,7 +496,7 @@ function ClientModal({ onClose, onSuccess }: any) {
     address: "",
     source: "",
     case_number: "",
-    resolution: "",
+    description: "",
   });
 
   const handleOverlayClick = (e: any) => {
@@ -401,13 +507,17 @@ function ClientModal({ onClose, onSuccess }: any) {
     if (!client.case_number.trim()) return;
     try {
       const res = await apiGet(`/clientes/validate-case/${client.case_number}`);
-      if (res.valid) {
-        setClient({ ...client, resolution: res.resolution });
+      if (res.valid && res.description) {
+        setClient((prev) => ({ ...prev, description: res.description }));
         toast.success("Case found");
+      } else {
+        setClient((prev) => ({ ...prev, description: "" }));
+        toast.error("Case not found");
       }
-    } catch {
-      toast.error("Case not found");
-      setClient({ ...client, resolution: "" });
+    } catch (err) {
+      console.error("❌ Error validating case:", err);
+      toast.error("Error validating case");
+      setClient((prev) => ({ ...prev, description: "" }));
     }
   };
 
@@ -475,139 +585,13 @@ function ClientModal({ onClose, onSuccess }: any) {
             </Button>
           </div>
 
-          {client.resolution && (
+          {client.description && (
             <Textarea
               readOnly
-              value={client.resolution}
+              value={client.description}
               className="bg-gray-100 text-gray-700"
             />
           )}
-        </div>
-
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>Save</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   APPOINTMENT MODAL (UNIFICADO)
-   ========================================================= */
-function AppointmentModal({ client, onClose, onSuccess }: any) {
-  const [form, setForm] = useState({
-    title: "",
-    start_time: "",
-    end_time: "",
-    address: "",
-    note: "",
-    status: "pending",
-    client_id: client?.id || "",
-  });
-
-  const [clients, setClients] = useState<{ id: number; fullname: string }[]>([]);
-
-  useEffect(() => {
-    if (!client) {
-      (async () => {
-        try {
-          const data = await apiGet<{ id: number; fullname: string }[]>("/clientes");
-          setClients(data);
-        } catch {
-          toast.error("Error loading clients");
-        }
-      })();
-    }
-  }, [client]);
-
-  const handleOverlayClick = (e: any) => {
-    if (e.target.id === "overlay") onClose();
-  };
-
-  const handleSubmit = async () => {
-    const { title, start_time, end_time, client_id } = form;
-    if (!title || !start_time || !end_time)
-      return toast.error("Please fill all required fields");
-    if (!client_id) return toast.error("Please select a client");
-
-    try {
-      await apiPost("/appointments", {
-        ...form,
-        created_by: "system",
-      });
-      toast.success("Appointment saved");
-      onSuccess();
-      onClose();
-    } catch (err) {
-      console.error("❌ Error creating appointment:", err);
-      toast.error("Error creating appointment");
-    }
-  };
-
-  return (
-    <div
-      id="overlay"
-      onClick={handleOverlayClick}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    >
-      <div
-        className="bg-white rounded-2xl shadow-lg w-[500px] p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-xl font-semibold mb-4">
-          {client ? `New Appointment for ${client.fullname}` : "New Appointment"}
-        </h2>
-
-        <div className="grid gap-3">
-          {!client && (
-            <div>
-              <label className="text-sm font-medium">Select Client</label>
-              <select
-                className="w-full border rounded-md p-2 mt-1"
-                value={form.client_id}
-                onChange={(e) =>
-                  setForm({ ...form, client_id: parseInt(e.target.value) })
-                }
-              >
-                <option value="">-- Select client --</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullname}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <Input
-            placeholder="Title"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-          />
-          <Input
-            type="datetime-local"
-            value={form.start_time}
-            onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-          />
-          <Input
-            type="datetime-local"
-            value={form.end_time}
-            onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-          />
-          <Input
-            placeholder="Address"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-          <Textarea
-            placeholder="Optional note..."
-            value={form.note}
-            onChange={(e) => setForm({ ...form, note: e.target.value })}
-          />
         </div>
 
         <div className="flex justify-end gap-2 mt-4">

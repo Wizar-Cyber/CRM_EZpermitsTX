@@ -18,7 +18,6 @@ function handle401() {
   try {
     localStorage.removeItem("authToken");
   } catch {}
-  // Opcional: notificar a la app
   try {
     window.dispatchEvent(new CustomEvent("auth:logout"));
   } catch {}
@@ -28,14 +27,13 @@ function handle401() {
 }
 
 export async function apiRequest<T>(
-  method: "GET" | "POST" | "PUT" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH", // 👈 agregado PATCH
   path: string,
   body?: any,
   extra?: RequestInit
 ): Promise<T> {
   const token = localStorage.getItem("authToken");
 
-  // 🔹 Headers básicos + token
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -45,7 +43,7 @@ export async function apiRequest<T>(
   let finalBody: BodyInit | undefined = undefined;
 
   if (body instanceof FormData) {
-    delete headers["Content-Type"]; // ❗ Deja que el navegador lo maneje
+    delete headers["Content-Type"]; // el navegador lo maneja
     finalBody = body;
   } else if (body !== undefined) {
     finalBody = JSON.stringify(body);
@@ -68,7 +66,6 @@ export async function apiRequest<T>(
   if (ct.includes("application/json")) {
     return res.json() as Promise<T>;
   }
-
   // @ts-expect-error: permitimos texto si no hay JSON
   return (res.text() as unknown) as T;
 }
@@ -86,6 +83,10 @@ export const apiPut = <T>(path: string, body?: any, opts: RequestInit = {}) =>
 export const apiDelete = <T>(path: string, opts: RequestInit = {}) =>
   apiRequest<T>("DELETE", path, undefined, opts);
 
+// ✅ NUEVO: soporte PATCH
+export const apiPatch = <T>(path: string, body?: any, opts: RequestInit = {}) =>
+  apiRequest<T>("PATCH", path, body, opts);
+
 export function toFormData(obj: Record<string, any>): FormData {
   const fd = new FormData();
   Object.entries(obj).forEach(([k, v]) => {
@@ -100,5 +101,6 @@ export function toFormData(obj: Record<string, any>): FormData {
   });
   return fd;
 }
-// 🔙 Compatibilidad con versiones anteriores
+
+// Compatibilidad
 export const api = apiRequest;

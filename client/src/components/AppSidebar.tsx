@@ -34,11 +34,7 @@ const menuItems = [
     icon: Home,
   },
   // ✨ 4. Nuevo botón para "Leads Clasificados"
-  {
-    title: "Classified Leads",
-    url: "/classified-leads",
-    icon: KanbanSquare,
-  },
+ 
   // ✨ 5. Nuevo botón para "Clientes"
   {
     title: "Clients",
@@ -105,27 +101,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* ✨ 8. Panel de Administrador (solo se muestra si isAdmin es true) */}
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs text-muted-foreground uppercase mt-4">
-              Admin Panel
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/admin"}>
-                    <Link href="/admin">
-                      <Shield className="w-5 h-5" />
-                      <span>User Management</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
 
         {/* Grupo para el botón de logout (lo empujamos al fondo) */}
         <SidebarGroup className="mt-auto">

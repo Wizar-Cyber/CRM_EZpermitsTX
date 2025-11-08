@@ -1,11 +1,15 @@
+// src/features/auth/AuthProvider.tsx
 import { useState, createContext, useContext, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 
 interface UserPayload {
   id: number;
   email: string;
-  role: string;
-  fullname?: string; // ✅ Añadido por si el backend lo devuelve
+  role: string;           // 'admin' | 'user'
+  role_id?: number | null;
+  fullname?: string | null;
+  is_approved?: boolean;
+  is_blocked?: boolean;
 }
 
 interface AuthContextType {
@@ -18,6 +22,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const API = "http://localhost:4000/api";
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserPayload | null>(null);
@@ -27,6 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const onForcedLogout = () => {
       setToken(null);
       setUser(null);
+      localStorage.removeItem("authToken");
     };
     window.addEventListener("auth:logout", onForcedLogout as EventListener);
 
@@ -37,91 +44,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // Pre‑set token para evitar parpadeos mientras se verifica
       setToken(storedToken);
-
       try {
-        // 🔹 1. Verificar token
-        const response = await fetch("http://localhost:4000/api/auth/verify", {
+        // ✅ Verificamos y traemos el usuario desde /auth/verify
+        const res = await fetch(`${API}/auth/verify`, {
           headers: { Authorization: `Bearer ${storedToken}` },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-
-          if (data.valid) {
-            setToken(storedToken);
-
-            try {
-              // 🔹 2. Consultar /api/me para obtener la info completa
-              const userRes = await fetch("http://localhost:4000/api/me", {
-                headers: { Authorization: `Bearer ${storedToken}` },
-              });
-
-              if (userRes.ok) {
-                const { user: fullUser } = await userRes.json();
-                setUser(fullUser);
-              } else {
-                // fallback: decodificar token si /api/me falla
-                const decodedUser: UserPayload = jwtDecode(storedToken);
-                setUser(decodedUser);
-              }
-            } catch (err) {
-              console.error("Error fetching full user:", err);
-              const decodedUser: UserPayload = jwtDecode(storedToken);
-              setUser(decodedUser);
-            }
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.valid && data?.user) {
+            setUser(data.user as UserPayload);
           } else {
-            localStorage.removeItem("authToken");
-            setToken(null);
-            setUser(null);
+            // fallback a decodificar token
+            const decoded: UserPayload = jwtDecode(storedToken);
+            setUser(decoded);
           }
         } else {
+          // token inválido → limpiar
           localStorage.removeItem("authToken");
           setToken(null);
           setUser(null);
         }
-      } catch (error) {
-        console.error("Error verificando token:", error);
-        localStorage.removeItem("authToken");
-        setToken(null);
-        setUser(null);
+      } catch {
+        // fallback a decodificar
+        try {
+          const decoded: UserPayload = jwtDecode(storedToken);
+          setUser(decoded);
+        } catch {
+          localStorage.removeItem("authToken");
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     verifyStoredToken();
-
-    return () => {
-      window.removeEventListener("auth:logout", onForcedLogout as EventListener);
-    };
+    return () => window.removeEventListener("auth:logout", onForcedLogout as EventListener);
   }, []);
 
   const login = (newToken: string) => {
     localStorage.setItem("authToken", newToken);
     setToken(newToken);
-    // Intentar obtener el perfil completo inmediatamente
+    // Tras login, también usamos /auth/verify para obtener el perfil
     (async () => {
       try {
-        const meRes = await fetch("http://localhost:4000/api/me", {
+        const res = await fetch(`${API}/auth/verify`, {
           headers: { Authorization: `Bearer ${newToken}` },
         });
-        if (meRes.ok) {
-          const { user: fullUser } = await meRes.json();
-          setUser(fullUser);
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.valid && data?.user) {
+            setUser(data.user as UserPayload);
+            return;
+          }
         }
-      } catch (err) {
-        console.warn("Fallo obteniendo /api/me tras login, se usa JWT decodificado");
-      }
-
-      try {
-        const decodedUser: UserPayload = jwtDecode(newToken);
-        setUser(decodedUser);
-      } catch (error) {
-        console.error("No se pudo decodificar el nuevo token:", error);
-        setUser(null);
+        // fallback
+        const decoded: UserPayload = jwtDecode(newToken);
+        setUser(decoded);
+      } catch {
+        try {
+          const decoded: UserPayload = jwtDecode(newToken);
+          setUser(decoded);
+        } catch {
+          setUser(null);
+        }
       }
     })();
   };
@@ -132,21 +121,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
   };
 
-  const value = {
-    isAuthenticated: !!token,
-    isLoading,
-    user,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: !!token,
+        isLoading,
+        user,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };

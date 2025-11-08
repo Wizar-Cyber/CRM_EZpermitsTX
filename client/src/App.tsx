@@ -15,7 +15,7 @@ import { useLocation } from "wouter";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import Dashboard from "@/pages/Dashboard";
-import { LeadsPage } from "@/pages/LeadsPage";
+import LeadsPage  from "@/pages/LeadsPage";
 import MapPage from "@/pages/MapPage";
 import RoutesPage from "@/pages/RoutesPage";
 import AppointmentsPage from "@/pages/AppointmentsPage";

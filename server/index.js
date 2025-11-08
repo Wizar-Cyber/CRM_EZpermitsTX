@@ -11,8 +11,9 @@ import leadsRoutes from './routes/leads.js';
 import routesRoutes from './routes/routes.js';
 import settingsRouter from "./routes/settings.js";
 import clientesRouter from "./routes/clientes.js";
-
-
+import appointmentsRouter from "./routes/appointments.js";
+import dashboardRoutes from "./routes/dashboard.js";
+import adminRouter from "./routes/admin.js";
 
 
 
@@ -28,6 +29,10 @@ app.use('/api/leads', leadsRoutes);
 app.use('/api/routes', routesRoutes);
 app.use("/api/settings", settingsRouter);
 app.use("/api/clientes", clientesRouter);
+app.use("/api/appointments", appointmentsRouter);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin", adminRouter);
+
 
 // Perfil del usuario autenticado
 app.get("/api/me", authenticate, async (req, res) => {
