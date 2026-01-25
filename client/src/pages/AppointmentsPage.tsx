@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Calendar as BigCalendar,
@@ -489,10 +488,4 @@ useEffect(() => {
       )}
     </div>
   );
-=======
-import { AppointmentCalendar } from "@/components/AppointmentCalendar";
-
-export default function AppointmentsPage() {
-  return <AppointmentCalendar />;
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 }

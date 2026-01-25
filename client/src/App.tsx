@@ -1,19 +1,12 @@
 import { Switch, Route } from "wouter";
-<<<<<<< HEAD
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
-=======
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
-<<<<<<< HEAD
 import "leaflet/dist/leaflet.css";
 
 import { AuthProvider, useAuth } from "@/features/hooks/useAuth";
@@ -23,16 +16,11 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import Dashboard from "@/pages/Dashboard";
 import LeadsPage  from "@/pages/LeadsPage";
-=======
-import Dashboard from "@/pages/Dashboard";
-import LeadsPage from "@/pages/LeadsPage";
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 import MapPage from "@/pages/MapPage";
 import RoutesPage from "@/pages/RoutesPage";
 import AppointmentsPage from "@/pages/AppointmentsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
-<<<<<<< HEAD
 import ClientsPage from "@/pages/ClientsPage";
 
 function AuthGate() {
@@ -93,13 +81,10 @@ function RedirectRoot() {
 
   return null;
 }
-=======
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 
 function Router() {
   return (
     <Switch>
-<<<<<<< HEAD
       {/* Rutas Públicas */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
@@ -121,14 +106,6 @@ function Router() {
       <Route path="/" component={RedirectRoot} />
 
       {/* 404 */}
-=======
-      <Route path="/" component={Dashboard} />
-      <Route path="/leads" component={LeadsPage} />
-      <Route path="/map" component={MapPage} />
-      <Route path="/routes" component={RoutesPage} />
-      <Route path="/appointments" component={AppointmentsPage} />
-      <Route path="/settings" component={SettingsPage} />
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
       <Route component={NotFound} />
     </Switch>
   );
@@ -138,19 +115,14 @@ function App() {
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
-<<<<<<< HEAD
   } as React.CSSProperties;
 
   const [location] = useLocation();
   const hideSidebar = location === "/login" || location === "/register";
-=======
-  };
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-<<<<<<< HEAD
         <AuthProvider>
           <SidebarProvider style={style}>
             <div className="flex h-screen w-full">
@@ -172,23 +144,6 @@ function App() {
           </SidebarProvider>
           <Toaster position="bottom-right" richColors closeButton />
         </AuthProvider>
-=======
-        <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex h-screen w-full">
-            <AppSidebar />
-            <div className="flex flex-col flex-1 overflow-hidden">
-              <header className="flex items-center justify-between p-4 border-b border-border bg-background sticky top-0 z-50">
-                <SidebarTrigger data-testid="button-sidebar-toggle" />
-                <ThemeToggle />
-              </header>
-              <main className="flex-1 overflow-auto p-6 bg-background">
-                <Router />
-              </main>
-            </div>
-          </div>
-        </SidebarProvider>
-        <Toaster />
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
       </TooltipProvider>
     </QueryClientProvider>
   );

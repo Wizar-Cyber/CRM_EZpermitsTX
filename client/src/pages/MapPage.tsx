@@ -1,5 +1,4 @@
 import { MapView } from "@/components/MapView";
-<<<<<<< HEAD
 import { useRoute } from "wouter"; 
 
 export default function MapPage() {
@@ -18,10 +17,3 @@ export default function MapPage() {
     </div>
   );
 }
-=======
-
-export default function MapPage() {
-  // TODO: Get routeId from URL params when editing
-  return <MapView />;
-}
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e

@@ -1,10 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-<<<<<<< HEAD
-=======
-
->>>>>>> 8341f75009abe16d7b6d48cd07b748544c6d436e
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);
