@@ -781,7 +781,7 @@ router.get("/metrics", authenticate, async (req, res) => {
       ? `created_date_local >= $1::date AND created_date_local < ($2::date + INTERVAL '1 day')`
       : `created_date_local >= (NOW() - INTERVAL '30 days')`;
 
-    const [[tot], [newL], [inR], [upA], [compV], [totC], [uncl], [enDel], [secAt], [totRed], [qual]] =
+    const [[tot], [newL], [inR], [upA], [compV], [totC], [uncl], [enDel], [secAt], [totRed], qualRows] =
       await Promise.all([
         pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE consulta IS DISTINCT FROM 'red'`).then(r => r.rows),
         pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE ${dateFilter}`, rp).then(r => r.rows),
@@ -832,7 +832,7 @@ router.get("/metrics", authenticate, async (req, res) => {
       : 0;
 
     const COLOR_MAP = { green:"#22c55e", yellow:"#eab308", blue:"#3b82f6", red:"#ef4444", unclassified:"#94a3b8" };
-    const lead_quality = (qual || []).map(r => ({
+    const lead_quality = (qualRows || []).map(r => ({
       name: r.bucket,
       value: r.value,
       fill: COLOR_MAP[r.bucket] ?? "#94a3b8",
