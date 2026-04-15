@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useAuth } from "@/features/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 import RutasMap from "@/components/maps/RutasMap";
 import { copyText } from "@/lib/clipboard";
 
@@ -26,11 +27,14 @@ type RouteResponse = {
 
 export function MapView({ routeId }: { routeId?: string }) {
   const [points, setPoints] = useState<Point[]>([]);
+  const [originalPoints, setOriginalPoints] = useState<Point[]>([]);
   const [loading, setLoading] = useState(true);
   const [routeName, setRouteName] = useState("");
+  const [originalRouteName, setOriginalRouteName] = useState("");
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { editingRoute, setEditingRoute } = useEditingRoute();
 
   useEffect(() => {
     const loadPoints = async () => {
@@ -39,10 +43,34 @@ export function MapView({ routeId }: { routeId?: string }) {
         let initialPoints: Point[] = [];
 
         if (routeId) {
-          const routeData = await apiGet<RouteResponse>(`/routes/${routeId}`);
-          initialPoints = routeData.points || [];
-          setRouteName(routeData.name || "");
-          toast.info(`Editing route: ${routeData.name}`);
+          // If editingRoute already has this route loaded in context (user navigated away and back),
+          // use context points (which may include newly added cases) instead of reloading from API.
+          const ctxId = editingRoute?.id != null ? String(editingRoute.id) : null;
+          if (ctxId === String(routeId) && (editingRoute?.points?.length ?? 0) > 0) {
+            initialPoints = editingRoute!.points || [];
+            setRouteName(editingRoute!.name || "");
+            setOriginalRouteName(editingRoute!.name || "");
+          } else {
+            // Fresh load from API
+            const routeData = await apiGet<RouteResponse>(`/routes/${routeId}`);
+            initialPoints = routeData.points || [];
+            setRouteName(routeData.name || "");
+            setOriginalRouteName(routeData.name || "");
+            setOriginalPoints(initialPoints);
+            setEditingRoute({
+              id: String(routeId),
+              name: routeData.name || "",
+              points: initialPoints,
+              created_by: (routeData as any).created_by,
+              scheduled_on: (routeData as any).scheduled_on,
+            } as any);
+          }
+        } else if (editingRoute?.id) {
+          // No URL routeId but editingRoute exists (rare case)
+          initialPoints = editingRoute.points || [];
+          setRouteName(editingRoute.name || "");
+          setOriginalRouteName(editingRoute.name || "");
+          setOriginalPoints(initialPoints);
         }
 
         const rawPoints =
@@ -84,7 +112,32 @@ export function MapView({ routeId }: { routeId?: string }) {
     };
 
     loadPoints();
-  }, [routeId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId]); // Do NOT add editingRoute to deps — re-loading from API would overwrite newly added cases
+
+  // Check for unsaved changes
+  const hasChanges =
+    points.length !== originalPoints.length ||
+    routeName !== originalRouteName ||
+    points.some(
+      (p, i) =>
+        !originalPoints[i] ||
+        p.id !== originalPoints[i].id ||
+        p.address !== originalPoints[i].address
+    );
+
+  // Warn if trying to leave with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasChanges]);
 
   useEffect(() => {
     if (!routeId && points.length > 0) {
@@ -147,13 +200,17 @@ export function MapView({ routeId }: { routeId?: string }) {
       points,
       case_numbers: caseNumbers,
       created_by: user.email,
+      updated_by: user.email,
       updated_at: now,
       scheduled_on: now,
     };
 
     try {
-      if (routeId) {
-        await apiPut(`/routes/${routeId}`, payload);
+      // Use editingRoute id if available, otherwise use routeId from URL
+      const idToUse = editingRoute?.id != null ? String(editingRoute.id) : routeId;
+
+      if (idToUse) {
+        await apiPut(`/routes/${idToUse}`, payload);
         toast.success("Route updated successfully!");
       } else {
         await apiPost("/routes", payload);
@@ -179,6 +236,10 @@ export function MapView({ routeId }: { routeId?: string }) {
       localStorage.removeItem("selectedLeadsForMap");
       setPoints([]);
       setRouteName("");
+      
+      // Clear editing state
+      setEditingRoute(null);
+      
       setTimeout(() => setLocation("/routes"), 0);
     } catch (err: any) {
       console.error("❌ Error saving route:", err);
@@ -209,8 +270,32 @@ export function MapView({ routeId }: { routeId?: string }) {
     );
   };
 
+  const totalLocations = points.length;
+  const activeRouteId = editingRoute?.id != null ? String(editingRoute.id) : null;
+  const isEditing = (routeId && activeRouteId === String(routeId)) || (!routeId && !!activeRouteId);
+
   return (
-    <div className="flex flex-col md:flex-row h-full gap-4">
+    <div className="flex flex-col h-full gap-4">
+      {isEditing && editingRoute && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-blue-900">
+              Editing Route: <span className="font-semibold">{editingRoute.name}</span> • {totalLocations} {totalLocations === 1 ? "location" : "locations"}
+              {hasChanges && <span className="ml-2 text-amber-700">• Unsaved changes</span>}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditingRoute(null)}
+            className="h-7"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+      <div className="flex flex-col md:flex-row h-full gap-4">
       <Card className="md:w-[380px] w-full flex flex-col p-4 rounded-2xl">
         <div className="mb-3">
           <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -288,7 +373,7 @@ export function MapView({ routeId }: { routeId?: string }) {
             className="w-full rounded-lg"
           >
             <Save className="w-4 h-4 mr-2" />
-            {routeId ? "Update Route" : "Save Route"}
+            {(routeId || editingRoute?.id) ? "Update Route" : "Save Route"}
           </Button>
         </div>
       </Card>
@@ -306,6 +391,7 @@ export function MapView({ routeId }: { routeId?: string }) {
           />
         )}
       </Card>
+      </div>
     </div>
   );
 }

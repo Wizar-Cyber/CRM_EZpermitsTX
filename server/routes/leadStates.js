@@ -256,15 +256,21 @@ leadStatesRouter.get("/second-attempt-due", async (_req, res) => {
          FROM houston_311_bcv l
          LEFT JOIN routes r ON r.id = l.assigned_route_id
         WHERE l.contacted_at IS NULL
-          AND l.second_attempt_due_at IS NOT NULL
-          AND l.second_attempt_due_at <= NOW()
-          AND l.current_state IN ('IN_DELIVERY','NO_RESPONSE','SECOND_ATTEMPT')
+          AND (
+            -- Casos enviados por segunda vez: mostrar inmediatamente
+            l.current_state = 'SECOND_ATTEMPT'
+            OR
+            -- Casos sin respuesta cuya fecha de segundo intento ya venció
+            (l.current_state = 'NO_RESPONSE'
+             AND l.second_attempt_due_at IS NOT NULL
+             AND l.second_attempt_due_at <= NOW())
+          )
           AND NOT EXISTS (
             SELECT 1
               FROM clientes c
              WHERE c.case_number = l.case_number
           )
-        ORDER BY l.second_attempt_due_at ASC`
+        ORDER BY l.current_state DESC, l.second_attempt_due_at ASC NULLS LAST`
     );
 
     res.json({ data: result.rows });

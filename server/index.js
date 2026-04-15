@@ -49,7 +49,53 @@ app.use(
 );
 app.use(express.json());
 
-// Rutas Principales
+// ==================== ARCHIVOS ESTÁTICOS ====================
+// Servir archivos del cliente compilado con Vite
+const clientDistPath = process.env.CLIENT_DIST_PATH || new URL('../client/dist', import.meta.url).pathname;
+
+// Middleware para assets compilados (con hash) - pueden cachearse por mucho tiempo
+app.use('/assets', express.static(
+  new URL('../client/dist/assets', import.meta.url).pathname,
+  {
+    maxAge: '1y', // Assets con hash pueden cachearse un año
+    etag: false,
+    lastModified: false
+  }
+));
+
+// Servir archivos estáticos públicos
+app.use('/', express.static(
+  new URL('../client/public', import.meta.url).pathname,
+  {
+    maxAge: '1d', // 1 día para recursos públicos
+    setHeaders: (res, path) => {
+      // No cachear archivos HTML
+      if (path.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    }
+  }
+));
+
+// Servir el index.html para todas las rutas que no son API
+// (para que react-router funcione)
+app.get('*', (req, res, next) => {
+  // Si es una ruta API, dejar que continúe
+  if (req.path.startsWith('/api/')) return next();
+
+  // Servir index.html con headers que previenen caché
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(new URL('../client/dist/index.html', import.meta.url).pathname, (err) => {
+    if (err) {
+      // Si no existe index.html, pasar al siguiente middleware
+      next();
+    }
+  });
+});
 app.use('/api/auth', authRoutes); 
 app.use('/api/leads', leadsRoutes);
 app.use('/api/routes', routesRoutes);

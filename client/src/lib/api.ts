@@ -1,6 +1,28 @@
 // src/lib/api.ts
 export const API_BASE_URL = import.meta.env.VITE_API_URL;
 const LAST_ACTIVITY_KEY = "authLastActivity";
+const TOKEN_KEY = "authToken";
+
+// Token and activity are stored in sessionStorage (cleared when browser closes).
+// Always try both storages during the migration period.
+function getToken(): string | null {
+  try { return window.sessionStorage.getItem(TOKEN_KEY); } catch {}
+  return null;
+}
+
+function clearAuth() {
+  try { window.sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  try { window.sessionStorage.removeItem(LAST_ACTIVITY_KEY); } catch {}
+  // Also clear legacy localStorage values
+  try { window.localStorage.removeItem(TOKEN_KEY); } catch {}
+  try { window.localStorage.removeItem(LAST_ACTIVITY_KEY); } catch {}
+}
+
+function stampActivity() {
+  try {
+    window.sessionStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  } catch {}
+}
 
 /**
  * Helper genérico para hacer peticiones al backend Express
@@ -16,10 +38,7 @@ async function parseError(res: Response) {
 }
 
 function handle401() {
-  try {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem(LAST_ACTIVITY_KEY);
-  } catch {}
+  clearAuth();
   try {
     window.dispatchEvent(new CustomEvent("auth:logout"));
   } catch {}
@@ -28,19 +47,13 @@ function handle401() {
   }
 }
 
-function stampActivity() {
-  try {
-    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
-  } catch {}
-}
-
 export async function apiRequest<T = any>(
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH", // 👈 agregado PATCH
   path: string,
   body?: any,
   extra?: RequestInit
 ): Promise<T> {
-  const token = localStorage.getItem("authToken");
+  const token = getToken();
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

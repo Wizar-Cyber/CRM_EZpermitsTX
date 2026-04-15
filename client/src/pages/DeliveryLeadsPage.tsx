@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpDown, Check, Eye, MapPin, RotateCcw, UserPlus, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 import { apiGet, apiPatch } from "@/lib/api";
 import { useAuth } from "@/features/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -10,9 +11,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ClientCreateModal, type NewClientData } from "@/components/ClientCreateModal";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
 import { copyText } from "@/lib/clipboard";
 
@@ -40,6 +51,18 @@ type DeliveryLead = {
   assigned_route_id?: number | null;
 };
 
+type FullLeadDetails = DeliveryLead & {
+  resolution_inspector?: string | null;
+  description_inspector?: string | null;
+  created_date_inspector?: string | null;
+  resolve_by_time?: string | null;
+  state_code_name?: string | null;
+  zip_code?: string | null;
+  channel?: string | null;
+  url?: string | null;
+  status?: string | null;
+};
+
 type ApiListResponse = { data: DeliveryLead[] };
 type SortField = "case_number" | "incident_address" | "created_date_local" | "sent_to_delivery_date" | "contacted_at" | "route_name" | "current_state";
 type SortDir = "asc" | "desc";
@@ -51,8 +74,16 @@ const fmtDate = (iso?: string | null) => {
   return d.toLocaleString();
 };
 
-const isSecondAttempt = (lead: DeliveryLead) => Number(lead.delivery_attempts || 0) >= 2;
+const isSecondAttempt = (lead: DeliveryLead) =>
+  lead.current_state === 'SECOND_ATTEMPT' || Number(lead.delivery_attempts || 0) >= 2;
 const getRouteAttemptNumber = (lead: DeliveryLead) => Math.max(1, Number(lead.delivery_attempts || 1));
+
+const DetailItem = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-4 gap-1 sm:gap-4 py-2 border-b border-border/50">
+    <dt className="text-sm font-semibold text-muted-foreground sm:col-span-1">{label}</dt>
+    <dd className="sm:col-span-3 text-sm">{children || "—"}</dd>
+  </div>
+);
 
 export default function DeliveryLeadsPage() {
   const [mode, setMode] = useState<"in-delivery" | "second-attempt" | "follow-up">("in-delivery");
@@ -65,6 +96,8 @@ export default function DeliveryLeadsPage() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactLead, setContactLead] = useState<DeliveryLead | null>(null);
   const [viewLead, setViewLead] = useState<DeliveryLead | null>(null);
+  const [fullLeadDetails, setFullLeadDetails] = useState<FullLeadDetails | null>(null);
+  const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [contactForm, setContactForm] = useState({
     contact_name: "",
@@ -77,6 +110,12 @@ export default function DeliveryLeadsPage() {
     incident_address: "",
     description: "",
   });
+
+  const { editingRoute, setEditingRoute } = useEditingRoute();
+  const [addCasesToRouteConfirm, setAddCasesToRouteConfirm] = useState<{
+    leadIds: string[];
+    onConfirm: () => void;
+  } | null>(null);
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -221,6 +260,65 @@ export default function DeliveryLeadsPage() {
   };
 
   const sendToMap = (lead: DeliveryLead) => {
+    // Check if a route is currently being edited
+    if (editingRoute) {
+      // Show confirmation dialog to add to route
+      setAddCasesToRouteConfirm({
+        leadIds: [lead.case_number],
+        onConfirm: () => {
+          try {
+            // Add case to the editing route
+            const address = lead.incident_address || "";
+            const newPoint = {
+              id: `${lead.case_number}-${address}`,
+              case_number: lead.case_number,
+              address: address,
+              incident_address: address,
+              lat: null,
+              lng: null,
+              description: "",
+            };
+
+            // Update the editing route in context with new case
+            const updatedRoute = {
+              ...editingRoute,
+              points: [...(editingRoute.points || []), newPoint],
+            };
+            setEditingRoute(updatedRoute);
+
+            // Also add to map queue
+            const existingRaw =
+              localStorage.getItem("selectedForMap") ||
+              localStorage.getItem("selectedLeadsForMap");
+            const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+            const item = {
+              id: `${lead.case_number}-${address}`,
+              case_number: lead.case_number,
+              incident_address: address,
+              address: address,
+              lat: null,
+              lng: null,
+            };
+            const merged = [...existing, item].reduce((acc: any[], curr: any) => {
+              if (!acc.some((x) => x.id === curr.id)) acc.push(curr);
+              return acc;
+            }, []);
+
+            localStorage.setItem("selectedForMap", JSON.stringify(merged));
+            localStorage.setItem("selectedLeadsForMap", JSON.stringify(merged));
+
+            toast.success(`Case added to route and map queue.`);
+            setAddCasesToRouteConfirm(null);
+          } catch (err: any) {
+            console.error("Error adding case to route:", err);
+            toast.error("Failed to add case to route");
+          }
+        },
+      });
+      return;
+    }
+
     const performSend = () => {
       const existingRaw =
         localStorage.getItem("selectedForMap") ||
@@ -280,6 +378,20 @@ export default function DeliveryLeadsPage() {
     setContactModalOpen(true);
   };
 
+  const openLeadDetailsModal = async (lead: DeliveryLead) => {
+    setViewLead(lead);
+    setLoadingLeadDetails(true);
+    try {
+      const details = await apiGet<FullLeadDetails>(`/leads/${lead.case_number}`);
+      setFullLeadDetails({ ...lead, ...details });
+    } catch (err: any) {
+      console.error("Error loading lead details:", err);
+      toast.error("Could not load lead details");
+    } finally {
+      setLoadingLeadDetails(false);
+    }
+  };
+
   const submitContact = () => {
     if (!contactLead) return;
     contactMutation.mutate({
@@ -337,59 +449,110 @@ export default function DeliveryLeadsPage() {
         title: "Send selected cases to map",
         description: "Some selected cases are already on second attempt. Send all selected cases to map anyway?",
         confirmLabel: "Send all",
-        onConfirm: () => {
-          const existingRaw =
-            localStorage.getItem("selectedForMap") ||
-            localStorage.getItem("selectedLeadsForMap");
-          const existing = existingRaw ? JSON.parse(existingRaw) : [];
-
-          const items = selectedList.map((lead) => ({
-            id: `${lead.case_number}-${lead.incident_address || "address"}`,
-            case_number: lead.case_number,
-            incident_address: lead.incident_address || "",
-            address: lead.incident_address || "",
-            lat: null,
-            lng: null,
-          }));
-
-          const merged = [...existing, ...items].reduce((acc: any[], curr: any) => {
-            if (!acc.some((x) => x.id === curr.id)) acc.push(curr);
-            return acc;
-          }, []);
-
-          localStorage.setItem("selectedForMap", JSON.stringify(merged));
-          localStorage.setItem("selectedLeadsForMap", JSON.stringify(merged));
-          toast.success(`${selectedList.length} case(s) added to map queue.`);
-          setSelectedLeads(new Set());
-          setConfirmAction(null);
-        },
+        onConfirm: () => performSendToMap(selectedList),
       });
       return;
     }
 
-    const existingRaw =
-      localStorage.getItem("selectedForMap") ||
-      localStorage.getItem("selectedLeadsForMap");
-    const existing = existingRaw ? JSON.parse(existingRaw) : [];
+    performSendToMap(selectedList);
+  };
 
-    const items = selectedList.map((lead) => ({
-      id: `${lead.case_number}-${lead.incident_address || "address"}`,
-      case_number: lead.case_number,
-      incident_address: lead.incident_address || "",
-      address: lead.incident_address || "",
-      lat: null,
-      lng: null,
-    }));
+  const performSendToMap = (selectedList: DeliveryLead[]) => {
+    // Check if a route is currently being edited
+    if (editingRoute) {
+      // Show confirmation dialog in English
+      setAddCasesToRouteConfirm({
+        leadIds: selectedList.map(l => l.case_number),
+        onConfirm: () => {
+          try {
+            // Add cases to the editing route
+            const newPoints = selectedList.map(l => {
+              const address = l.incident_address || "";
+              return {
+                id: `${l.case_number}-${address}`,
+                case_number: l.case_number,
+                address: address,
+                incident_address: address,
+                lat: null,
+                lng: null,
+                description: "",
+              };
+            });
 
-    const merged = [...existing, ...items].reduce((acc: any[], curr: any) => {
-      if (!acc.some((x) => x.id === curr.id)) acc.push(curr);
-      return acc;
-    }, []);
+            // Update the editing route in context with new cases
+            const updatedRoute = {
+              ...editingRoute,
+              points: [...(editingRoute.points || []), ...newPoints],
+            };
+            setEditingRoute(updatedRoute);
 
-    localStorage.setItem("selectedForMap", JSON.stringify(merged));
-    localStorage.setItem("selectedLeadsForMap", JSON.stringify(merged));
-    toast.success(`${selectedList.length} case(s) added to map queue.`);
-    setSelectedLeads(new Set());
+            // Also add to map queue for map page
+            const existingRaw =
+              localStorage.getItem("selectedForMap") ||
+              localStorage.getItem("selectedLeadsForMap");
+            const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+            const newItems = selectedList.map((lead) => ({
+              id: `${lead.case_number}-${lead.incident_address || "address"}`,
+              case_number: lead.case_number,
+              incident_address: lead.incident_address || "",
+              address: lead.incident_address || "",
+              lat: null,
+              lng: null,
+            }));
+
+            const byId = new Map(existing.map((item: any) => [item.id, item]));
+            newItems.forEach((item) => byId.set(item.id, item));
+            const merged = Array.from(byId.values());
+
+            const payload = JSON.stringify(merged);
+            localStorage.setItem("selectedForMap", payload);
+            localStorage.setItem("selectedLeadsForMap", payload);
+
+            toast.success(`${selectedList.length} case(s) added to route and map queue.`);
+            setSelectedLeads(new Set());
+            setConfirmAction(null);
+            setAddCasesToRouteConfirm(null);
+          } catch (err) {
+            console.error("Error adding cases to route:", err);
+            toast.error("Error adding cases to route.");
+          }
+        },
+      });
+    } else {
+      // No route being edited - just send to map normally
+      try {
+        const existingRaw =
+          localStorage.getItem("selectedForMap") ||
+          localStorage.getItem("selectedLeadsForMap");
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+        const newItems = selectedList.map((lead) => ({
+          id: `${lead.case_number}-${lead.incident_address || "address"}`,
+          case_number: lead.case_number,
+          incident_address: lead.incident_address || "",
+          address: lead.incident_address || "",
+          lat: null,
+          lng: null,
+        }));
+
+        // Use Map for O(1) lookups (same pattern as LeadsTable)
+        const byId = new Map(existing.map((item: any) => [item.id, item]));
+        newItems.forEach((item) => byId.set(item.id, item));
+        const merged = Array.from(byId.values());
+
+        const payload = JSON.stringify(merged);
+        localStorage.setItem("selectedForMap", payload);
+        localStorage.setItem("selectedLeadsForMap", payload);
+        
+        toast.success(`${selectedList.length} case(s) added to map queue.`);
+        setSelectedLeads(new Set());
+        setConfirmAction(null);
+      } catch (err) {
+        console.error("Error sending to map:", err);
+        toast.error("Error adding cases to map.");
+      }
+    }
   };
 
   const SortHeader = ({ field, title }: { field: SortField; title: string }) => (
@@ -471,8 +634,12 @@ export default function DeliveryLeadsPage() {
                   </thead>
                   <tbody>
                     {sortedRows.map((lead) => (
-                      <tr key={lead.case_number} className="border-t hover:bg-muted/30">
-                        <td className="p-3 text-center">
+                      <tr
+                        key={lead.case_number}
+                        className="border-t hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => openLeadDetailsModal(lead)}
+                      >
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center">
                             <Checkbox
                               checked={selectedLeads.has(lead.case_number)}
@@ -505,7 +672,7 @@ export default function DeliveryLeadsPage() {
                         <td className="p-3 text-center">
                           <Badge variant="outline">{lead.current_state || "N/A"}</Badge>
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-2">
                             {!showClosed && mode !== "follow-up" && (
                               <Button size="icon" variant="ghost" title="Mark as Contacted" onClick={() => openContactModal(lead)}>
@@ -628,22 +795,157 @@ export default function DeliveryLeadsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!viewLead} onOpenChange={(open) => !open && setViewLead(null)}>
-        <DialogContent className="sm:max-w-[520px]">
+      <Dialog open={!!fullLeadDetails && !!viewLead} onOpenChange={(open) => {
+        if (!open) {
+          setViewLead(null);
+          setFullLeadDetails(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Contact details</DialogTitle>
+            <DialogTitle>Lead Details</DialogTitle>
             <DialogDescription>
-              Case #{viewLead?.case_number || "—"}
+              Case #{fullLeadDetails?.case_number || "—"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <p><span className="font-medium">Contact date:</span> {fmtDate(viewLead?.contacted_at)}</p>
-            <p><span className="font-medium">Name:</span> {viewLead?.contact_name || "—"}</p>
-            <p><span className="font-medium">Phone:</span> {viewLead?.contact_phone || "—"}</p>
-            <p><span className="font-medium">Note:</span> {viewLead?.contact_note || "—"}</p>
-          </div>
-          <DialogFooter>
-            <Button type="button" onClick={() => setViewLead(null)}>Close</Button>
+
+          {loadingLeadDetails ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">Loading details...</p>
+            </div>
+          ) : fullLeadDetails ? (
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="inspector">Inspector</TabsTrigger>
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="dates">Dates</TabsTrigger>
+                <TabsTrigger value="route">Route</TabsTrigger>
+                <TabsTrigger value="location">Location</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-3">
+                <DetailItem label="Case Number">{fullLeadDetails.case_number}</DetailItem>
+                <DetailItem label="Address">{fullLeadDetails.incident_address}</DetailItem>
+                <DetailItem label="Current State">
+                  <Badge variant="outline">{fullLeadDetails.current_state || "—"}</Badge>
+                </DetailItem>
+                <DetailItem label="Route">
+                  {fullLeadDetails.route_name || (fullLeadDetails.assigned_route_id ? `Route ${fullLeadDetails.assigned_route_id}` : "—")}
+                </DetailItem>
+                {fullLeadDetails.delivery_attempts ? (
+                  <DetailItem label="Delivery Attempts">
+                    <div className="flex items-center gap-2">
+                      <span>{fullLeadDetails.delivery_attempts}</span>
+                      {fullLeadDetails.delivery_attempts >= 2 && (
+                        <span className="text-xs text-red-600 font-semibold">(Second Attempt+)</span>
+                      )}
+                    </div>
+                  </DetailItem>
+                ) : null}
+              </TabsContent>
+
+              <TabsContent value="inspector" className="space-y-3">
+                <DetailItem label="Resolution">
+                  {fullLeadDetails.resolution_inspector}
+                </DetailItem>
+                {fullLeadDetails.description_inspector && (
+                  <DetailItem label="Description">
+                    {fullLeadDetails.description_inspector}
+                  </DetailItem>
+                )}
+                <DetailItem label="Inspector Date">
+                  {fullLeadDetails.created_date_inspector
+                    ? new Date(fullLeadDetails.created_date_inspector as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+              </TabsContent>
+
+              <TabsContent value="general" className="space-y-3">
+                <DetailItem label="Channel">{fullLeadDetails.channel}</DetailItem>
+                <DetailItem label="Status">{fullLeadDetails.status}</DetailItem>
+                {fullLeadDetails.url && (
+                  <DetailItem label="URL">
+                    <a
+                      href={fullLeadDetails.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline break-all"
+                    >
+                      {fullLeadDetails.url}
+                    </a>
+                  </DetailItem>
+                )}
+              </TabsContent>
+
+              <TabsContent value="dates" className="space-y-3">
+                <DetailItem label="Created (Local)">
+                  {fullLeadDetails.created_date_local
+                    ? new Date(fullLeadDetails.created_date_local as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Sent to Delivery">
+                  {fullLeadDetails.sent_to_delivery_date
+                    ? new Date(fullLeadDetails.sent_to_delivery_date as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Resolve By">
+                  {fullLeadDetails.resolve_by_time
+                    ? new Date(fullLeadDetails.resolve_by_time as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                {fullLeadDetails.contacted_at && (
+                  <DetailItem label="Contacted">
+                    {new Date(fullLeadDetails.contacted_at as any).toLocaleString()}
+                  </DetailItem>
+                )}
+              </TabsContent>
+
+              <TabsContent value="route" className="space-y-3">
+                <DetailItem label="Route Name">
+                  {fullLeadDetails.route_name || (fullLeadDetails.assigned_route_id ? `Route ${fullLeadDetails.assigned_route_id}` : "—")}
+                </DetailItem>
+                <DetailItem label="Sent to Delivery">
+                  {fullLeadDetails.sent_to_delivery_date
+                    ? new Date(fullLeadDetails.sent_to_delivery_date as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Delivery Attempts">
+                  <div className="flex items-center gap-2">
+                    <span>{fullLeadDetails.delivery_attempts || 0}</span>
+                    {(fullLeadDetails.delivery_attempts || 0) >= 2 && (
+                      <span className="text-xs text-red-600 font-semibold">(Second Attempt+)</span>
+                    )}
+                  </div>
+                </DetailItem>
+                {fullLeadDetails.second_attempt_due_at && (
+                  <DetailItem label="Second Attempt Due">
+                    {new Date(fullLeadDetails.second_attempt_due_at as any).toLocaleString()}
+                  </DetailItem>
+                )}
+              </TabsContent>
+
+              <TabsContent value="location" className="space-y-3">
+                <DetailItem label="State">{fullLeadDetails.state_code_name}</DetailItem>
+                <DetailItem label="ZIP Code">{fullLeadDetails.zip_code}</DetailItem>
+              </TabsContent>
+            </Tabs>
+          ) : null}
+
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setFullLeadDetails(null) || openCreateClientModal(viewLead!)}
+            >
+              <UserPlus className="w-4 h-4 mr-2" /> Create Client
+            </Button>
+            <Button type="button" variant="destructive" onClick={() => {
+              setViewLead(null);
+              setFullLeadDetails(null);
+            }}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -659,6 +961,26 @@ export default function DeliveryLeadsPage() {
         destructive={!!confirmAction?.destructive}
         onConfirm={() => confirmAction?.onConfirm()}
       />
+
+      {/* Add Cases to Route Dialog */}
+      <AlertDialog open={!!addCasesToRouteConfirm} onOpenChange={(open) => {
+        if (!open) setAddCasesToRouteConfirm(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add Cases to Route</AlertDialogTitle>
+            <AlertDialogDescription>
+              Currently editing route <strong>{editingRoute?.name}</strong>. Add {addCasesToRouteConfirm?.leadIds.length || 0} cases to this route?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => addCasesToRouteConfirm?.onConfirm()}>
+              Add Cases
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

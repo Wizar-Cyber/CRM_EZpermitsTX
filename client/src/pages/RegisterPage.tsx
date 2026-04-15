@@ -14,17 +14,17 @@ import { apiPost } from "@/lib/api";
 
 function PasswordStrengthIndicator({ criteria }: { criteria: Record<string, boolean> }) {
   const map = {
-    length: "At least 8 characters",
-    uppercase: "At least one uppercase letter",
-    lowercase: "At least one lowercase letter",
-    number: "At least one number",
-    special: "At least one special character",
+    length: "8 chars",
+    uppercase: "Uppercase",
+    lowercase: "Lowercase",
+    number: "Number",
+    special: "Special",
   };
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mt-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 mt-1.5">
       {Object.entries(map).map(([k, txt]) => (
         <div key={k} className={`flex items-center text-xs ${criteria[k] ? "text-emerald-500" : "text-muted-foreground"}`}>
-          {criteria[k] ? <CheckCircle2 className="w-3 h-3 mr-2" /> : <XCircle className="w-3 h-3 mr-2" />}{txt}
+          {criteria[k] ? <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> : <XCircle className="w-2.5 h-2.5 mr-1" />}{txt}
         </div>
       ))}
     </div>
@@ -93,23 +93,30 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2 xl:min-h-[100vh]">
-      <div className="w-full min-h-[100vh] grid place-items-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
-        <Card className="w-full max-w-lg p-8 shadow-2xl">
-          <CardHeader className="text-center p-0 mb-6">
+      <div className="hidden bg-black lg:flex items-center justify-center p-0">
+        <img
+          src="/EZPermitsLOgo.png"
+          alt="EZpermitsTX"
+          className="h-full w-full object-cover"
+        />
+      </div>
+      <div className="w-full flex flex-col items-center justify-start lg:justify-center lg:min-h-[100vh] overflow-y-auto py-4 px-3 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+        <Card className="w-full max-w-md p-4 sm:p-6 shadow-2xl">
+          <CardHeader className="text-center p-0 mb-4">
             <img
               src="/logo.png"
               alt="Logo de tu empresa"
-              className="h-20 w-20 mx-auto rounded-xl bg-card p-2 shadow-lg ring-1 ring-border"
+              className="h-16 w-16 mx-auto rounded-lg shadow-lg object-contain"
             />
-            <CardTitle className="text-3xl font-bold mt-2">Create an Account</CardTitle>
-            <CardDescription>Enter your information to create a new account.</CardDescription>
+            <CardTitle className="text-2xl font-bold mt-2">Create Account</CardTitle>
+            <CardDescription className="text-xs">Enter your information to register.</CardDescription>
           </CardHeader>
 
           <form onSubmit={onSubmit} noValidate>
-            <CardContent className="p-0 grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="firstName">First Name</Label>
+            <CardContent className="p-0 grid gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-1">
+                <Label htmlFor="firstName" className="text-xs">First Name</Label>
                 <Input
                   id="firstName"
                   name="firstName"
@@ -119,8 +126,8 @@ export default function RegisterPage() {
                   required
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="lastName">Last Name</Label>
+              <div className="grid gap-1">
+                <Label htmlFor="lastName" className="text-xs">Last Name</Label>
                 <Input
                   id="lastName"
                   name="lastName"
@@ -132,8 +139,8 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="grid gap-1">
+              <Label htmlFor="email" className="text-xs">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -149,8 +156,8 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone</Label>
+            <div className="grid gap-1">
+              <Label htmlFor="phone" className="text-xs">Phone</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -166,8 +173,8 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="grid gap-1">
+              <Label htmlFor="password" className="text-xs">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -197,8 +204,8 @@ export default function RegisterPage() {
               <PasswordStrengthIndicator criteria={pwCrit} />
             )}
 
-            <div className="grid gap-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="grid gap-1">
+              <Label htmlFor="confirmPassword" className="text-xs">Confirm Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -224,17 +231,17 @@ export default function RegisterPage() {
 
             <div className="flex items-center space-x-2 mt-2">
               <Checkbox id="terms" checked={agreed} onCheckedChange={(v) => setAgreed(!!v)} />
-              <label htmlFor="terms" className="text-sm">
+              <label htmlFor="terms" className="text-xs">
                 Accept terms and privacy policy
               </label>
             </div>
             </CardContent>
 
-            <CardFooter className="flex-col p-0 pt-6 gap-4">
-              <Button type="submit" className="w-full" disabled={loading || !agreed || !pwValid}>
-                {loading ? "Creating Account..." : (<><UserPlus className="w-4 h-4 mr-2" /> Create Account</>)}
+            <CardFooter className="flex-col p-0 pt-4 gap-3">
+              <Button type="submit" className="w-full text-sm" disabled={loading || !agreed || !pwValid}>
+                {loading ? "Creating..." : (<><UserPlus className="w-3.5 h-3.5 mr-1.5" /> Register</>)}
               </Button>
-              <div className="text-center text-sm">
+              <div className="text-center text-xs">
                 Already have an account?{" "}
                 <a
                   href="/login"
@@ -247,14 +254,6 @@ export default function RegisterPage() {
             </CardFooter>
           </form>
         </Card>
-      </div>
-
-      <div className="hidden bg-card lg:flex items-center justify-center p-10">
-        <img
-          src="/EZPermitsLOgo.png"
-          alt="EZpermitsTX"
-          className="max-h-[78vh] w-auto object-contain"
-        />
       </div>
     </div>
   );

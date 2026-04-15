@@ -39,12 +39,12 @@ leadsRouter.get("/", async (req, res) => {
     }
 
     if (filter === "in_delivery") {
-      query += ` AND current_state = 'IN_DELIVERY'`;
+      query += ` AND current_state IN ('IN_DELIVERY', 'SECOND_ATTEMPT')`;
     } else if (filter === "second_attempt_due") {
       query += ` AND current_state = 'NO_RESPONSE' AND second_attempt_due_at IS NOT NULL AND second_attempt_due_at <= NOW()`;
     } else {
-      // Por defecto, ocultar los que están en reparto
-      query += ` AND current_state <> 'IN_DELIVERY'`;
+      // Por defecto, ocultar los que están en reparto (activo o segundo intento)
+      query += ` AND current_state NOT IN ('IN_DELIVERY', 'SECOND_ATTEMPT')`;
     }
 
     // ✅ Seguridad: solo permitir columnas válidas para ordenamiento

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Eye, MapPin, ArrowUpDown, Copy, RotateCcw, X, UserPlus } from "lucide-react"; 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Tabs,
   TabsList,
@@ -37,7 +48,7 @@ import { apiGet as appGet, apiPost as appPost, apiDelete as appDelete, API_BASE_
 
 // Implementación local de PATCH con token
 async function appPatch(path: string, body?: any) {
-  const token = localStorage.getItem("authToken");
+  const token = window.sessionStorage.getItem("authToken");
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -230,6 +241,12 @@ export function LeadsTable() {
     onConfirm: () => void;
   } | null>(null);
 
+  const { editingRoute, setEditingRoute } = useEditingRoute();
+  const [addCasesToRouteConfirm, setAddCasesToRouteConfirm] = useState<{
+    leadIds: string[];
+    onConfirm: () => void;
+  } | null>(null);
+
   useEffect(() => {
     sessionStorage.setItem(
       SESSION_STORAGE_KEY,
@@ -277,39 +294,86 @@ export function LeadsTable() {
 
   // NOTA DE NEGOCIO:
   // El score y color deben salir únicamente de resolution_inspector.
-  // Esta lista representa frases de cierre/descartado y tiene prioridad.
+  // === KEYWORDS PERFECCIONADOS CON ANÁLISIS SEMÁNTICO ===
+  // RED: Cierre definitivo, SIN violaciones encontradas
   const RED_KEYWORDS = [
-    "task is closed","case closed","active project","already permitted",
-    "permit approved","permit issued","permitted project",
-    "referred to the structural","referred to structural","referred to electrical",
-    "not investigate","no action required","duplicate case","duplicate request",
-    "referred to","duplicate of case","voided","case cancelled","investigation closed",
-    "unable to verify","not found","resolved previously","compliant","work completed",
-    "no violation found","case closed as permitted","closed by inspector","issue resolved",
-    "duplicate complaint","invalid report","no further action","owner obtained permit",
-    "existing permit","no violation","not a building code violation",
-    "closed","resolved","completed","compliant"
+    // Cierre explícito sin problemas
+    /case\s+closed\s+(?:as\s+)?(?:permitted|without\s+violation)/i,
+    /service\s+completed(?:\s+.*?)?(?:no\s+violation|is\s+not)/i,
+    /no\s+(?:code\s+)?violation\s*(?:found|detected|observed)?/i,
+    /not\s+a\s+(?:building\s+code\s+)?violation/i,
+    /case\s+(?:closed|resolved|completed)/i,
+    /investigation\s+(?:closed|completed)/i,
+    /no\s+action\s+(?:required|needed|will\s+be\s+taken)/i,
+    
+    // Cierre por referencia a otro departamento
+    /referred\s+to\s+(?:fire|department|police|health)/i,
+    /not\s+(?:within|under)\s+(?:our|building)\s+department/i,
+    
+    // Permiso ya existente
+    /already\s+(?:permitted|has\s+permit)/i,
+    /existing\s+permit/i,
+    /permit\s+(?:on\s+file|on\s+record)/i,
+    
+    // Casos inválidos o duplicados
+    /duplicate\s+(?:case|complaint|report)/i,
+    /invalid\s+(?:report|complaint)/i,
+    /unable\s+to\s+verify\s+(?:violation|concern)/i,
+    /no\s+further\s+action/i,
+    /case\s+(?:voided|cancelled)/i,
+    /compliant/i,
   ];
 
+  // GREEN: Violación CONFIRMADA y específica (con evidencia)
   const GREEN_KEYWORDS = [
-    "unpermitted work","unpermitted","illegal","unauthorized",
-    "no permit","no permits","building without permit", /no\s+\w*\s*permits?/,
-    "violation","permit required","structural","safety","foundation","danger"
+    // Violaciones sin permiso (patrones muy específicos)
+    /(?:unpermitted|unauthorized|illegal)\s+(?:work|construction|renovation)/i,
+    /(?:work|(?:under\s+)?construction)\s+(?:without|no)\s+permit/i,
+    /no\s+(?:valid\s+)?permit\s+(?:on\s+file|issued|found)(?:\s+for)/i,
+    
+    // Evidencia de trabajo NO permitido observado/encontrado
+    /(?:observed|found|determined|verified)\s+(?:.*?\s+)?(?:unpermitted|unauthorized|illegal)\s+work/i,
+    /(?:observed|found|determined|visible)\s+.*?(?:structural\s+modification|foundation\s+work|electrical\s+installation|plumbing\s+work|renovation|remodeling)/i,
+    
+    // Violaciones claras confirmadas
+    /(?:code|building\s+code|permit)\s+violation(?:\s+(?:found|observed|confirmed))?/i,
+    /safety\s+(?:hazard|concern)\s+(?:found|observed|identified)/i,
+    
+    // Trabajos específicos no permitidos
+    /extensive\s+(?:renovation|repair|work)(?:\s+.*?)?(?:without\s+permit|unauthorized)/i,
+    /structural\s+(?:work|modification|repair)(?:\s+.*?)?(?:without\s+permit|unauthorized|not\s+permitted)/i,
+    /addition|expansion|construction(?:\s+.*?)?(?:without\s+permit|unauthorized|not\s+permitted)/i,
   ];
 
+  // YELLOW: Seguimiento pendiente, caso abierto
   const YELLOW_KEYWORDS = [
-    "follow-up", "follow up", "reinspection", "additional", "monitor",
-    "follow up inspection","follow-up scheduled","pending inspection",
-    "awaiting reinspection","awaiting compliance","awaiting correction",
-    "still active","open violation","compliance pending","awaiting resolution",
-    "further inspection required"
+    // Reinspección programada
+    /(?:follow[\s-]?up|reinspection|further\s+inspection)\s+(?:scheduled|required|pending)/i,
+    /(?:awaiting|pending)\s+(?:.*?\s+)?(?:reinspection|follow[\s-]?up|correction|compliance)/i,
+    
+    // Casos abiertos activos
+    /still\s+(?:active|open)/i,
+    /open\s+(?:case|violation)/i,
+    /(?:compliance|correction)\s+(?:pending|required)/i,
+    
+    // Monitoreo o supervisión
+    /(?:monitor|further\s+monitoring)/i,
+    /(?:under|requires)\s+supervision/i,
   ];
 
+  // BLUE: Administrativo, espera de información
   const BLUE_KEYWORDS = [
-    "pending assignment","awaiting assignment","inspection scheduled","pending response",
-    "refer to supervisor","pending validation","waiting for response","forwarded to inspector",
-    "information requested","awaiting documentation","awaiting owner response",
-    "forwarded to department","referred to another division","escalated for review"
+    // Asignación y respuesta pendiente
+    /pending\s+(?:assignment|response)/i,
+    /awaiting\s+(?:assignment|response|documentation|owner\s+response)/i,
+    
+    // Información solicitada
+    /information\s+(?:requested|required)/i,
+    /evidence\s+(?:needed|requested|required|provided)/i,
+    
+    // Escalado administrativo
+    /referred\s+to\s+(?:supervisor|inspector|department)/i,
+    /inspection\s+(?:scheduled|pending)\s+(?:assignment)?/i,
   ];
 
   type LeadScore = {
@@ -317,6 +381,85 @@ export function LeadsTable() {
     tag: string;
     score: number;
     hasResolution: boolean;
+  };
+
+  // === FUNCIONES HELPER PARA ANÁLISIS SEMÁNTICO ===
+
+  // Buscar si una frase contiene negación explícita de violación
+  const hasNegationOfViolation = (text: string): boolean => {
+    // Solo patrones EXPLÍCITOS de "no hay violación"
+    const negationPatterns = [
+      /no\s+(?:code\s+)?violations?\s+(?:found|observed|determined|detected)?/i,
+      /not\s+(?:a\s+)?(?:building\s+code\s+)?violations?/i,
+      /is\s+not\s+(?:a\s+)?violations?/i,
+      /(?:these\s+are\s+)?not\s+(?:a\s+)?(?:building\s+code\s+)?violations?/i,
+      /no\s+violations?\s+(?:found|observed|identified)?/i,
+      // "Service Completed" solo cuenta si está explícitamente con "no violation" en la misma línea
+      /service\s+completed.*?no\s+violations?/i,
+      /service\s+completed.*?not\s+(?:a\s+)?(?:building\s+code\s+)?violations?/i,
+      /no\s+(?:further\s+)?action\s+(?:required|needed|will\s+be\s+taken)/i,
+      /compliant.*?(?:no\s+violations?|not\s+(?:a\s+)?(?:building\s+code\s+)?violations?)/i,
+    ];
+    return negationPatterns.some(p => p.test(text));
+  };
+
+  // Detectar si hay evidencia específica de violación confirmada
+  const hasConfirmedViolation = (text: string): boolean => {
+    // Patrones que indican violaciones confirmadas por inspección
+    const violationPatterns = [
+      // Patrón 1: Queja o hallazgo de "construction/work without permit"
+      /construction\s+without\s+(?:a\s+)?permits?/i,
+      /work\s+without\s+(?:a\s+)?permits?/i,
+      /(?:no|did\s+not\s+find|could\s+not\s+find).*?(?:active\s+)?permits?.*?observed/i,
+      
+      // Patrón 2: "Observed/found/visible + newly constructed/metal building"
+      /(?:observed|found|visible|accessed).*?(?:newly\s+constructed|new\s+(?:metal\s+)?building|structure|addition|expansion)/i,
+      
+      // Patrón 3: Caso base: "observed/found + violaciones específicas"
+      /(?:observed|found|determined|verified|visible|appeared).*?(?:unpermitted|unauthorized|illegal|code\s+violation|permit\s+violation|work|repairs?|renovation|remodeling|construction)/i,
+      
+      // Patrón 4: Trabajo extenso detectado
+      /(?:extensively|completely)\s+(?:repaired|renovated|remodeled|gutted|rebuilt|constructed)/i,
+      /fully\s+(?:renovated|remodeled|rebuilt|constructed)/i,
+      
+      // Patrón 5: Trabajos específicos no permitidos
+      /(?:structural|electrical|plumbing)\s+(?:work|installation|modifications?|repairs?)(?:\s+.*?)?(?:without\s+permit|unauthorized|not\s+permitted|requires?\s+(?:proper\s+)?permits?)/i,
+      
+      // Patrón 6: Trabajos específicos + evidencia observada
+      /(?:observed|found|visible|appeared).*?(?:structural\s+(?:work|modifications?)|electrical\s+(?:work|installation)|plumbing\s+work|detached\s+garage|room\s+addition|expansion|metal\s+building|container)/i,
+      
+      // Patrón 7: "work/construction/repairs require permits"
+      /(?:work|repairs?|renovation|construction|structure).*?(?:requires?|required|need(?:s)?)\s+(?:proper\s+)?permits?/i,
+      
+      // Patrón 8: "unpermitted/unauthorized/illegal" sin negaciones
+      /(?:unpermitted|unauthorized|illegal)\s+(?:work|construction|renovation|repairs?|structure)/i,
+      /work\s+(?:was\s+)?(?:done|completed|performed)\s+(?:without|no)\s+(?:proper\s+)?permits?/i,
+    ];
+    
+    return violationPatterns.some(p => p.test(text));
+  };
+
+  // Detectar palabras genéricas sin contexto (falsas alarmas)
+  const hasGenericMentionWithoutEvidence = (text: string): boolean => {
+    const falsePositivePatterns = [
+      /please\s+provide\s+evidence.*?(?:structural|electrical|plumbing|work)/i,
+      /request.*?(?:photos?|evidence).*?(?:structural|electrical|plumbing)/i,
+      /if\s+work\s+was\s+done.*?(?:structural|electrical|plumbing)/i,
+      /regarding.*?(?:structural|electrical|plumbing)\s+work/i,
+    ];
+    return falsePositivePatterns.some(p => p.test(text));
+  };
+
+  // Detectar cierre definitivo
+  const hasDefinitiveClosure = (text: string): boolean => {
+    const closurePatterns = [
+      /case\s+closed/i,
+      /service\s+completed/i,
+      /investigation\s+closed/i,
+      /no\s+further\s+action/i,
+      /no\s+violation\s+(?:found|observed|determined)/i,
+    ];
+    return closurePatterns.some(p => p.test(text));
   };
 
   const getLeadScore = (lead: Lead): LeadScore => {
@@ -343,7 +486,6 @@ export function LeadsTable() {
     const rawResolution = (lead.resolution_inspector || "").trim();
 
     // Regla de negocio: sin nota del inspector no hay semántica de clasificación.
-    // Mostramos mensaje claro + score 0 para ordenamiento consistente.
     if (!rawResolution) {
       return {
         color: "DEFAULT",
@@ -355,28 +497,61 @@ export function LeadsTable() {
 
     const text = normalizeText(rawResolution);
 
-    // Recorremos TODO el texto y contamos ocurrencias por categoría para evitar
-    // clasificar por la primera coincidencia parcial.
+    // ANÁLISIS SEMÁNTICO CON PRIORIDAD CORRECTA:
+    // La evidencia de VIOLACIONES debe tener MAYOR prioridad que "Service Completed"
+    // porque "Service Completed" solo cierra el caso si NO hay violaciones
+    
+    // NIVEL 1: Violaciones CONFIRMADAS (máxima prioridad)
+    // Si hay evidencia clara de trabajo no permitido observado, reportar como GREEN
+    const hasConfirmed = hasConfirmedViolation(text);
+    const hasGenericMention = hasGenericMentionWithoutEvidence(text);
+    
+    if (hasConfirmed && !hasGenericMention) {
+      // Violación claramente confirmada: "observed extensive repairs", "found structural work", etc.
+      return { color: "GREEN", tag: "Lead", score: 9, hasResolution: true };
+    }
+
+    // NIVEL 2: Cierre definitivo SIN violaciones (segunda prioridad)
+    // Solo considerar RED si dice explícitamente "no violation" O "service completed - not a violation"
+    const hasDefinitiveClose = hasDefinitiveClosure(text);
+    const hasNegation = hasNegationOfViolation(text);
+    
+    if (hasDefinitiveClose && hasNegation) {
+      // Service Completed + No Violation explícitamente = RED
+      return { color: "RED", tag: "Discarded", score: 0, hasResolution: true };
+    }
+
+    // NIVEL 3: Análisis de keywords general
     const redHits = countMatches(text, RED_KEYWORDS);
     const greenHits = countMatches(text, GREEN_KEYWORDS);
     const yellowHits = countMatches(text, YELLOW_KEYWORDS);
     const blueHits = countMatches(text, BLUE_KEYWORDS);
 
-    if (redHits > 0 && redHits >= greenHits) {
-      return { color: "RED", tag: "Discarded", score: 0, hasResolution: true };
+    // Si hay mención genérica sin confirmación = evitar FALSE POSITIVE
+    if (hasGenericMention && redHits === 0 && yellowHits === 0) {
+      // "Please provide evidence..." = BLUE (información pendiente)
+      return { color: "BLUE", tag: "Other", score: 2, hasResolution: true };
     }
 
-    if (greenHits > 0) {
-      const score = Math.min(10, 6 + greenHits);
+    // GREEN: Si hay hits confirmados sin negación
+    if (greenHits > 0 && !hasNegation) {
+      const score = Math.min(10, 7 + greenHits);
       return { color: "GREEN", tag: "Lead", score, hasResolution: true };
     }
 
+    // RED: Cierre claro sin violación
+    if (redHits > 0 && greenHits === 0 && yellowHits === 0) {
+      return { color: "RED", tag: "Discarded", score: 0, hasResolution: true };
+    }
+
+    // YELLOW: Seguimiento pendiente
     if (yellowHits > 0) {
       const score = Math.min(6, 3 + yellowHits);
       return { color: "YELLOW", tag: "In Follow-up", score, hasResolution: true };
     }
 
-    if (blueHits > 0) {
+    // BLUE: Administrativo o sin clasificación clara
+    if (blueHits > 0 || redHits > 0) {
       return { color: "BLUE", tag: "Other", score: 2, hasResolution: true };
     }
 
@@ -496,6 +671,26 @@ export function LeadsTable() {
     [discardedLeads, searchTerm, colorFilter, sortRules]
   );
 
+  // Detectar direcciones duplicadas en los leads mostrados
+  const duplicateAddresses = useMemo(() => {
+    const addressMap = new Map<string, number>();
+    const currentList = pageTab === "classified" ? sortedClassifiedLeads : sortedLeads;
+    
+    currentList.forEach((lead) => {
+      const addr = String(lead.incident_address || "").trim();
+      if (addr) {
+        addressMap.set(addr, (addressMap.get(addr) ?? 0) + 1);
+      }
+    });
+
+    // Retorna un Set de direcciones que aparecen más de una vez
+    return new Set(
+      Array.from(addressMap.entries())
+        .filter(([_, count]) => count > 1)
+        .map(([addr]) => addr)
+    );
+  }, [sortedLeads, sortedClassifiedLeads, pageTab]);
+
   const resetTableView = () => {
     setSearchTerm("");
     setColorFilter(null);
@@ -523,18 +718,90 @@ export function LeadsTable() {
   });
 
   const sendOne = async (lead: Lead) => {
-    const coords = await geocodeAddress(lead.incident_address);
-    mergeSelectedForMap([toMapItem(lead, coords)]);
-    toast.success(`Sent ${lead.case_number} to map.`);
+    // Check if a route is currently being edited
+    if (editingRoute) {
+      // Show confirmation dialog
+      setAddCasesToRouteConfirm({
+        leadIds: [lead.case_number],
+        onConfirm: () => {
+          // Add case to the editing route
+          const address = lead.incident_address || "";
+          const newPoint = {
+            id: `${lead.case_number}-${address}`,
+            case_number: lead.case_number,
+            address: address,
+            incident_address: address,
+            lat: (lead as any).lat ?? null,
+            lng: (lead as any).lng ?? null,
+            description: lead.description || "",
+          };
+
+          // Update the editing route in context with new case
+          const updatedRoute = {
+            ...editingRoute,
+            points: [...(editingRoute.points || []), newPoint],
+          };
+          setEditingRoute(updatedRoute);
+
+          // Also add to map queue
+          mergeSelectedForMap([toMapItem(lead, null)]);
+
+          toast.success(`Case added to route and map queue.`);
+          setAddCasesToRouteConfirm(null);
+        },
+      });
+    } else {
+      // No route being edited - just send to map normally
+      mergeSelectedForMap([toMapItem(lead, null)]);
+      toast.success(`Sent ${lead.case_number} to map.`);
+    }
   };
 
   const sendMany = async (arr: Lead[]) => {
-    const mapped = await Promise.all(
-      arr.map(async (l) => toMapItem(l, await geocodeAddress(l.incident_address)))
-    );
-    mergeSelectedForMap(mapped);
-    toast.success(`${arr.length} sent to map.`);
-    setSelectedLeads(new Set());
+    // Check if a route is currently being edited
+    if (editingRoute) {
+      // Show confirmation dialog in English
+      setAddCasesToRouteConfirm({
+        leadIds: arr.map(l => l.case_number),
+        onConfirm: () => {
+          // Add cases to the editing route
+          const caseNumbers = arr.map(l => l.case_number);
+          const newPoints = arr.map(l => {
+            const address = l.incident_address || "";
+            return {
+              id: `${l.case_number}-${address}`,
+              case_number: l.case_number,
+              address: address,
+              incident_address: address,
+              lat: (l as any).lat ?? null,
+              lng: (l as any).lng ?? null,
+              description: l.description || "",
+            };
+          });
+
+          // Update the editing route in context with new cases
+          const updatedRoute = {
+            ...editingRoute,
+            points: [...(editingRoute.points || []), ...newPoints],
+          };
+          setEditingRoute(updatedRoute);
+
+          // Also add to map queue for map page
+          const mapped = arr.map((l) => toMapItem(l, null));
+          mergeSelectedForMap(mapped);
+
+          toast.success(`${arr.length} cases added to route and map queue.`);
+          setSelectedLeads(new Set());
+          setAddCasesToRouteConfirm(null);
+        },
+      });
+    } else {
+      // No route being edited - just send to map normally
+      const mapped = arr.map((l) => toMapItem(l, null));
+      mergeSelectedForMap(mapped);
+      toast.success(`${arr.length} sent to map.`);
+      setSelectedLeads(new Set());
+    }
   };
 
   const copySelectedDetails = async () => {
@@ -775,7 +1042,13 @@ export function LeadsTable() {
                   </div>
                 </td>
                 <td className="p-3 font-medium text-center align-middle text-sm">{lead.case_number}</td>
-                <td className="p-3 text-muted-foreground text-center align-middle">
+                <td 
+                  className={`p-3 text-center align-middle ${
+                    duplicateAddresses.has(String(lead.incident_address || "").trim())
+                      ? "bg-red-50 text-red-600 font-semibold"
+                      : "text-muted-foreground"
+                  }`}
+                >
                   <div
                     className="mx-auto max-w-[280px] truncate text-sm"
                     title={lead.incident_address || "N/A"}
@@ -840,10 +1113,21 @@ export function LeadsTable() {
       {/* pestañas de la página */}
       <Tabs value={pageTab} onValueChange={(v: string) => setPageTab(v as PageTab)} className="w-full">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <TabsList className="mb-0">
-            <TabsTrigger value="active">Leads</TabsTrigger>
-            <TabsTrigger value="classified">Classified Leads</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-wrap items-center gap-2">
+            <TabsList className="mb-0">
+              <TabsTrigger value="active">Leads</TabsTrigger>
+              <TabsTrigger value="classified">Classified Leads</TabsTrigger>
+            </TabsList>
+            <Button
+              type="button"
+              variant={showDiscarded ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowDiscarded((prev) => !prev)}
+              className="ml-2"
+            >
+              Show Discarded {showDiscarded ? `(${sortedDiscardedLeads.length})` : `(${sortedDiscardedLeads.length})`}
+            </Button>
+          </div>
 
           <div className="flex items-center gap-2">
             <Button type="button" onClick={copySelectedDetails} disabled={selectedLeads.size === 0} variant="outline">
@@ -877,15 +1161,6 @@ export function LeadsTable() {
       </Tabs>
 
       <div className="mt-6 border-t pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowDiscarded((prev) => !prev)}
-          className="mb-3"
-        >
-          {showDiscarded ? "Hide Discarded Leads" : `Show Discarded Leads (${sortedDiscardedLeads.length})`}
-        </Button>
-
         {showDiscarded && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-rose-600">Discarded Leads (manual red)</h3>
@@ -1094,6 +1369,26 @@ export function LeadsTable() {
         destructive={!!confirmAction?.destructive}
         onConfirm={() => confirmAction?.onConfirm()}
       />
+
+      {/* Add Cases to Route Dialog */}
+      <AlertDialog open={!!addCasesToRouteConfirm} onOpenChange={(open) => {
+        if (!open) setAddCasesToRouteConfirm(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add Cases to Route</AlertDialogTitle>
+            <AlertDialogDescription>
+              Currently editing route <strong>{editingRoute?.name}</strong>. Add {addCasesToRouteConfirm?.leadIds.length || 0} cases to this route?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => addCasesToRouteConfirm?.onConfirm()}>
+              Add Cases
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

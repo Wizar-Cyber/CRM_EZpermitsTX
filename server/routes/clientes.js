@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../db.js";
 import { authenticate } from "../middleware/auth.js";
+import { writeAuditEvent } from "../utils/audit.js";
 
 const router = express.Router();
 
@@ -107,6 +108,15 @@ router.post("/", authenticate, async (req, res) => {
       );
     }
 
+    // Audit: client created
+    writeAuditEvent({
+      actorUserId: req.user.id,
+      action: "CLIENT_CREATED",
+      entity: "client",
+      entityId: String(result.rows[0].id),
+      metadata: { fullname, email, phone, case_number: case_number || null, type: type || "new" },
+    }).catch(() => {});
+
     res.status(201).json({ ...result.rows[0], description });
   } catch (err) {
     console.error("❌ Error creating client:", err);
@@ -160,6 +170,15 @@ router.put("/:id", authenticate, async (req, res) => {
        VALUES ($1,$2,'update','Client updated by user')`,
       [id, req.user.id]
     );
+
+    // Audit: client updated
+    writeAuditEvent({
+      actorUserId: req.user.id,
+      action: "CLIENT_UPDATED",
+      entity: "client",
+      entityId: String(id),
+      metadata: { fields_changed: Object.keys(req.body).filter((k) => allowedFields.includes(k)) },
+    }).catch(() => {});
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -337,7 +356,24 @@ router.post("/:id/appointments", authenticate, async (req, res) => {
    ========================================================= */
 router.delete("/:id", authenticate, async (req, res) => {
   try {
-    await pool.query("DELETE FROM clientes WHERE id = $1", [req.params.id]);
+    const { id } = req.params;
+    // Fetch basic info before deleting for audit metadata
+    const clientInfo = await pool.query(
+      "SELECT fullname, email, case_number FROM clientes WHERE id = $1",
+      [id]
+    );
+    await pool.query("DELETE FROM clientes WHERE id = $1", [id]);
+
+    // Audit: client deleted
+    const info = clientInfo.rows[0] || {};
+    writeAuditEvent({
+      actorUserId: req.user.id,
+      action: "CLIENT_DELETED",
+      entity: "client",
+      entityId: String(id),
+      metadata: { fullname: info.fullname || null, email: info.email || null, case_number: info.case_number || null },
+    }).catch(() => {});
+
     res.json({ message: "Client deleted successfully" });
   } catch (err) {
     console.error("❌ Error deleting client:", err);

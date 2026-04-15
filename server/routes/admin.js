@@ -87,7 +87,7 @@ async function ensureAdminPassword(req, res) {
 
   const ok = await bcrypt.compare(currentPassword, actor.password_hash);
   if (!ok) {
-    res.status(401).json({ error: "Invalid admin password" });
+    res.status(403).json({ error: "Invalid admin password" });
     return false;
   }
 

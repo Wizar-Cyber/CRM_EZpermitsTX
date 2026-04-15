@@ -155,6 +155,7 @@ export function RoutesTable({
                     >
                       <FileDown className="w-4 h-4" />
                     </Button>
+
                     <Button
                       size="icon"
                       variant="ghost"
@@ -162,6 +163,7 @@ export function RoutesTable({
                         e.stopPropagation();
                         onEdit(route.id);
                       }}
+                      title="Edit Map"
                       data-testid={`button-edit-${route.id}`}
                     >
                       <Pencil className="w-4 h-4" />

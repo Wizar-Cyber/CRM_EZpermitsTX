@@ -1,5 +1,5 @@
 // src/features/auth/AuthProvider.tsx
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, useCallback, createContext, useContext, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 
 const TOKEN_STORAGE_KEY = "authToken";
@@ -8,11 +8,14 @@ const SESSION_TIMEOUT_MINUTES =
   Number(import.meta.env.VITE_SESSION_TIMEOUT_MINUTES) || 10;
 export const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_MINUTES * 60 * 1000;
 
+// Auth tokens are stored in sessionStorage so they are ALWAYS cleared when the
+// browser window/tab is closed. localStorage persists across browser restarts
+// which is a security risk for a CRM application.
 const canUseStorage = () => typeof window !== "undefined";
 const getStorageItem = (key: string) => {
   if (!canUseStorage()) return null;
   try {
-    return window.localStorage.getItem(key);
+    return window.sessionStorage.getItem(key);
   } catch {
     return null;
   }
@@ -20,12 +23,15 @@ const getStorageItem = (key: string) => {
 const setStorageItem = (key: string, value: string) => {
   if (!canUseStorage()) return;
   try {
-    window.localStorage.setItem(key, value);
+    // Remove any stale value from localStorage (migration from old approach)
+    try { window.localStorage.removeItem(key); } catch {}
+    window.sessionStorage.setItem(key, value);
   } catch {}
 };
 const removeStorageItem = (key: string) => {
   if (!canUseStorage()) return;
   try {
+    window.sessionStorage.removeItem(key);
     window.localStorage.removeItem(key);
   } catch {}
 };
@@ -39,9 +45,10 @@ export const touchLastActivity = () =>
 const clearLastActivity = () => removeStorageItem(LAST_ACTIVITY_KEY);
 const hasSessionExpired = () => {
   const lastActivityRaw = getStorageItem(LAST_ACTIVITY_KEY);
-  if (!lastActivityRaw) return false;
+  // If no activity tracking found, session has expired or was never established
+  if (!lastActivityRaw) return true;
   const lastActivity = Number(lastActivityRaw);
-  if (Number.isNaN(lastActivity)) return false;
+  if (Number.isNaN(lastActivity)) return true;
   return Date.now() - lastActivity > SESSION_TIMEOUT_MS;
 };
 const clearPersistedSession = () => {
@@ -100,9 +107,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setToken(storedToken);
       try {
         // ✅ Verificamos y traemos el usuario desde /auth/verify
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        
         const res = await fetch(`${API}/auth/verify`, {
           headers: { Authorization: `Bearer ${storedToken}` },
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
 
         if (res.ok) {
           const data = await res.json();
@@ -111,18 +124,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             touchLastActivity();
           } else {
             // fallback a decodificar token
-            const decoded: UserPayload = jwtDecode(storedToken);
-            setUser(decoded);
-            touchLastActivity();
+            try {
+              const decoded: UserPayload = jwtDecode(storedToken);
+              setUser(decoded);
+              touchLastActivity();
+            } catch {
+              clearPersistedSession();
+              setToken(null);
+              setUser(null);
+            }
           }
         } else {
-          // token inválido → limpiar
+          // token inválido (401, 403, etc.) → limpiar
           clearPersistedSession();
           setToken(null);
           setUser(null);
         }
-      } catch {
-        // fallback a decodificar
+      } catch (err: any) {
+        // Network error or timeout → try decoding token as fallback
+        console.warn('Auth verify failed, attempting token decode:', (err as Error).message);
         try {
           const decoded: UserPayload = jwtDecode(storedToken);
           setUser(decoded);
@@ -141,7 +161,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => window.removeEventListener("auth:logout", onForcedLogout as EventListener);
   }, []);
 
-  const login = (newToken: string) => {
+  const login = useCallback((newToken: string) => {
     persistToken(newToken);
     touchLastActivity();
     setToken(newToken);
@@ -173,13 +193,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     })();
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearPersistedSession();
     setToken(null);
     setUser(null);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider

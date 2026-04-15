@@ -43,7 +43,7 @@ export async function writeAuditEvent({
 
   try {
     await ensureAuditEventsTable();
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO audit_events (
         actor_user_id,
         target_user_id,
@@ -51,7 +51,8 @@ export async function writeAuditEvent({
         entity,
         entity_id,
         metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+      RETURNING id`,
       [
         actorUserId,
         targetUserId,
@@ -61,7 +62,8 @@ export async function writeAuditEvent({
         JSON.stringify(metadata || {}),
       ]
     );
+    console.log(`✅ Audit recorded: id=${result.rows[0]?.id}, action=${action}, actor=${actorUserId}, target=${targetUserId}`);
   } catch (err) {
-    console.error("audit write error:", err);
+    console.error(`❌ Audit write error for action "${action}":`, err.message);
   }
 }

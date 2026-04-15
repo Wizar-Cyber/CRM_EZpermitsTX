@@ -3,20 +3,23 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiDelete, apiPatch } from "@/lib/api";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/features/hooks/useAuth";
-import { Check, Eye, MapPin, UserPlus, X } from "lucide-react";
+import { Check, MapPin, UserPlus, X } from "lucide-react";
 import { ClientCreateModal, type NewClientData } from "@/components/ClientCreateModal";
 import { exportRoutePdf } from "@/lib/routePdf";
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -51,6 +54,18 @@ type RouteLead = {
   second_attempt_due_at?: string | null;
   delivery_attempts?: number | null;
   publicity_attempts?: number | null;
+};
+
+type FullLeadDetails = RouteLead & {
+  resolution_inspector?: string | null;
+  description_inspector?: string | null;
+  created_date_inspector?: string | null;
+  resolve_by_time?: string | null;
+  state_code_name?: string | null;
+  zip_code?: string | null;
+  channel?: string | null;
+  url?: string | null;
+  status?: string | null;
 };
 
 type RouteLeadsResponse = {
@@ -94,13 +109,23 @@ const fmtDate = (value?: string | null) => {
 
 const isSecondAttempt = (lead: RouteLead) => Number(lead.delivery_attempts || 0) >= 2;
 
+const DetailItem = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-4 gap-1 sm:gap-4 py-2 border-b border-border/50">
+    <dt className="text-sm font-semibold text-muted-foreground sm:col-span-1">{label}</dt>
+    <dd className="sm:col-span-3 text-sm">{children || "—"}</dd>
+  </div>
+);
+
 export default function RoutesPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { setEditingRoute } = useEditingRoute();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [viewLead, setViewLead] = useState<RouteLead | null>(null);
+  const [fullLeadDetails, setFullLeadDetails] = useState<FullLeadDetails | null>(null);
+  const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
   const [routeSearch, setRouteSearch] = useState("");
   const [newClientModalOpen, setNewClientModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -126,10 +151,15 @@ export default function RoutesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (routeId: number) => apiDelete(`/routes/${routeId}`),
+    mutationFn: (routeId: number) => {
+      const qs = user?.email ? `?deleted_by=${encodeURIComponent(user.email)}` : "";
+      return apiDelete(`/routes/${routeId}${qs}`);
+    },
     onSuccess: () => {
       toast.success("Route deleted successfully.");
       queryClient.invalidateQueries({ queryKey: ["routes"] });
+      queryClient.invalidateQueries({ queryKey: ["delivery-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/leads"] });
       if (selectedRoute && selectedRoute.id === deleteId) {
         setSelectedRoute(null);
       }
@@ -161,7 +191,23 @@ export default function RoutesPage() {
     },
   });
 
+  const openLeadDetailsModal = async (lead: RouteLead) => {
+    setViewLead(lead);
+    setLoadingLeadDetails(true);
+    try {
+      const details = await apiGet<FullLeadDetails>(`/leads/${lead.case_number}`);
+      setFullLeadDetails({ ...lead, ...details });
+    } catch (err: any) {
+      console.error("Error loading lead details:", err);
+      toast.error("Could not load lead details");
+    } finally {
+      setLoadingLeadDetails(false);
+    }
+  };
+
   const handleEdit = (routeId: number) => {
+    // Clear any previous editing context so MapView loads fresh from API
+    setEditingRoute(null);
     setTimeout(() => setLocation(`/map/${routeId}`), 0);
   };
 
@@ -214,18 +260,25 @@ export default function RoutesPage() {
 
   const sendToMap = (lead: RouteLead) => {
     const performSend = () => {
-      const existingRaw =
-        localStorage.getItem("selectedForMap") ||
-        localStorage.getItem("selectedLeadsForMap");
-      const existing = existingRaw ? JSON.parse(existingRaw) : [];
-      const merged = [...existing, toMapItem(lead)].reduce((acc: any[], item: any) => {
-        if (!acc.some((a) => a.id === item.id)) acc.push(item);
-        return acc;
-      }, []);
+      try {
+        const existingRaw =
+          localStorage.getItem("selectedForMap") ||
+          localStorage.getItem("selectedLeadsForMap");
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        
+        // Use Map for O(1) lookups instead of O(n²) reduce/some
+        const byId = new Map(existing.map((item: any) => [item.id, item]));
+        byId.set(toMapItem(lead).id, toMapItem(lead));
+        const merged = Array.from(byId.values());
 
-      localStorage.setItem("selectedForMap", JSON.stringify(merged));
-      localStorage.setItem("selectedLeadsForMap", JSON.stringify(merged));
-      toast.success(`Case #${lead.case_number} added to map queue.`);
+        const payload = JSON.stringify(merged);
+        localStorage.setItem("selectedForMap", payload);
+        localStorage.setItem("selectedLeadsForMap", payload);
+        toast.success(`Case #${lead.case_number} added to map queue.`);
+      } catch (err) {
+        console.error("Error sending to map:", err);
+        toast.error("Error adding case to map.");
+      }
     };
 
     if ((lead.delivery_attempts || 0) >= 2) {
@@ -276,14 +329,23 @@ export default function RoutesPage() {
         routes={routes}
         onEdit={handleEdit}
         onDownload={handleDownloadRoutePdf}
-        onSelectRoute={(route) => setSelectedRoute(route)}
+        onSelectRoute={(route) => {
+          setSelectedRoute(route);
+        }}
         onDeleteRequest={(id) => setDeleteId(id)}
         deleteId={deleteId}
         onDeleteCancel={() => setDeleteId(null)}
         onDeleteConfirm={handleDeleteConfirm}
       />
 
-      <Dialog open={!!selectedRoute} onOpenChange={(open) => !open && setSelectedRoute(null)}>
+      <Dialog 
+        open={!!selectedRoute} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedRoute(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-7xl">
           <DialogHeader>
             <DialogTitle>Route Cases · {selectedRoute?.name || "Route"}</DialogTitle>
@@ -316,7 +378,11 @@ export default function RoutesPage() {
               </thead>
               <tbody>
                 {filteredRouteLeads.map((lead) => (
-                  <tr key={lead.case_number} className="border-b">
+                  <tr 
+                    key={lead.case_number} 
+                    className="border-b hover:bg-muted/40 cursor-pointer transition-colors"
+                    onClick={() => openLeadDetailsModal(lead)}
+                  >
                     <td className="px-3 py-2 text-center font-medium">
                       {lead.case_number}
                     </td>
@@ -326,11 +392,11 @@ export default function RoutesPage() {
                     </td>
                     <td className="px-3 py-2 text-center">{fmtDate(lead.sent_to_delivery_date)}</td>
                     <td className="px-3 py-2 text-center">{fmtDate(lead.second_attempt_due_at)}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap items-center justify-center gap-2">
                         {lead.current_state === "CONTACTED" ? (
-                          <Button size="icon" variant="ghost" title="View Contact" onClick={() => setViewLead(lead)}>
-                            <Eye className="w-4 h-4" />
+                          <Button size="icon" variant="ghost" title="Mark as Contacted" onClick={() => updateLeadMutation.mutate({ caseNumber: lead.case_number, action: "CONTACTED" })}>
+                            <Check className="w-4 h-4" />
                           </Button>
                         ) : (
                           <Button size="icon" variant="ghost" title="Mark as Contacted" onClick={() => updateLeadMutation.mutate({ caseNumber: lead.case_number, action: "CONTACTED" })}>
@@ -401,18 +467,151 @@ export default function RoutesPage() {
         onConfirm={() => confirmAction?.onConfirm()}
       />
 
-      <Dialog open={!!viewLead} onOpenChange={(open) => !open && setViewLead(null)}>
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>Contact details</DialogTitle>
-            <DialogDescription>Case #{viewLead?.case_number || "—"}</DialogDescription>
+      <Dialog open={!!viewLead} onOpenChange={(open) => {
+        if (!open) {
+          setViewLead(null);
+          setFullLeadDetails(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto p-4">
+          <DialogHeader className="mb-3">
+            <DialogTitle>Case Details</DialogTitle>
+            <DialogDescription>
+              Case #{fullLeadDetails?.case_number || viewLead?.case_number || "—"}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <p><span className="font-medium">Contact date:</span> {fmtDate(viewLead?.contacted_at)}</p>
-            <p><span className="font-medium">Name:</span> {viewLead?.contact_name || "—"}</p>
-            <p><span className="font-medium">Phone:</span> {viewLead?.contact_phone || "—"}</p>
-            <p><span className="font-medium">Note:</span> {viewLead?.contact_note || "—"}</p>
-          </div>
+
+          {loadingLeadDetails ? (
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground">Loading details...</p>
+            </div>
+          ) : fullLeadDetails ? (
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-6 mb-3">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="inspector">Inspector</TabsTrigger>
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="dates">Dates</TabsTrigger>
+                <TabsTrigger value="route">Route</TabsTrigger>
+                <TabsTrigger value="location">Location</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-1">
+                <DetailItem label="Case Number">{fullLeadDetails.case_number}</DetailItem>
+                <DetailItem label="Address">{fullLeadDetails.incident_address}</DetailItem>
+                <DetailItem label="Current State">
+                  <Badge variant="outline">{fullLeadDetails.current_state || "—"}</Badge>
+                </DetailItem>
+              </TabsContent>
+
+              <TabsContent value="inspector" className="space-y-1">
+                <DetailItem label="Resolution">
+                  {fullLeadDetails.resolution_inspector}
+                </DetailItem>
+                {fullLeadDetails.description_inspector && (
+                  <DetailItem label="Description">
+                    {fullLeadDetails.description_inspector}
+                  </DetailItem>
+                )}
+                <DetailItem label="Inspector Date">
+                  {fullLeadDetails.created_date_inspector
+                    ? new Date(fullLeadDetails.created_date_inspector as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+              </TabsContent>
+
+              <TabsContent value="general" className="space-y-1">
+                <DetailItem label="Channel">{fullLeadDetails.channel}</DetailItem>
+                <DetailItem label="Status">{fullLeadDetails.status}</DetailItem>
+                {fullLeadDetails.url && (
+                  <DetailItem label="URL">
+                    <a
+                      href={fullLeadDetails.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline break-all"
+                    >
+                      {fullLeadDetails.url}
+                    </a>
+                  </DetailItem>
+                )}
+              </TabsContent>
+
+              <TabsContent value="dates" className="space-y-1">
+                <DetailItem label="Created (Local)">
+                  {fullLeadDetails.created_date_local
+                    ? new Date(fullLeadDetails.created_date_local as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Resolve By">
+                  {fullLeadDetails.resolve_by_time
+                    ? new Date(fullLeadDetails.resolve_by_time as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                {fullLeadDetails.contacted_at && (
+                  <DetailItem label="Contacted">
+                    {new Date(fullLeadDetails.contacted_at as any).toLocaleString()}
+                  </DetailItem>
+                )}
+              </TabsContent>
+
+              <TabsContent value="route" className="space-y-1">
+                <DetailItem label="Route Name">
+                  {fullLeadDetails.route_name || (fullLeadDetails.assigned_route_id ? `Route ${fullLeadDetails.assigned_route_id}` : "—")}
+                </DetailItem>
+                <DetailItem label="Sent to Delivery">
+                  {fullLeadDetails.sent_to_delivery_date
+                    ? new Date(fullLeadDetails.sent_to_delivery_date as any).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Delivery Attempts">
+                  <div className="flex items-center gap-2">
+                    <span>{fullLeadDetails.delivery_attempts || 0}</span>
+                    {(fullLeadDetails.delivery_attempts || 0) >= 2 && (
+                      <span className="text-xs text-red-600 font-semibold">(Second Attempt+)</span>
+                    )}
+                  </div>
+                </DetailItem>
+                {fullLeadDetails.second_attempt_due_at && (
+                  <DetailItem label="Second Attempt Due">
+                    {new Date(fullLeadDetails.second_attempt_due_at as any).toLocaleString()}
+                  </DetailItem>
+                )}
+              </TabsContent>
+
+              <TabsContent value="location" className="space-y-1">
+                <DetailItem label="State">{fullLeadDetails.state_code_name}</DetailItem>
+                <DetailItem label="ZIP Code">{fullLeadDetails.zip_code}</DetailItem>
+              </TabsContent>
+            </Tabs>
+          ) : null}
+
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (fullLeadDetails) {
+                  setClientToCreate({
+                    case_number: fullLeadDetails.case_number,
+                    address: fullLeadDetails.incident_address || "",
+                    incident_address: fullLeadDetails.incident_address || "",
+                    description: fullLeadDetails.description_inspector || "",
+                  });
+                  setNewClientModalOpen(true);
+                }
+              }}
+            >
+              <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Create Client
+            </Button>
+            <Button type="button" variant="destructive" size="sm" onClick={() => {
+              setViewLead(null);
+              setFullLeadDetails(null);
+            }}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

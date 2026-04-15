@@ -6,6 +6,7 @@ import { Loader2, ExternalLink, FileDown } from "lucide-react";
 import { geocodeAddress as geocodeLeadAddress } from "@/lib/geocode";
 import { apiPost } from "@/lib/api";
 import { exportRoutePdf } from "@/lib/routePdf";
+import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 
 type RoutePoint = {
   id: string;
@@ -85,6 +86,7 @@ export default function RutasMap({ points, onPointsResolved, routeName }: RutasM
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const { editingRoute } = useEditingRoute();
 
   const [mapReady, setMapReady] = useState(false);
   const [resolvedPoints, setResolvedPoints] = useState<RoutePoint[]>([]);
@@ -100,12 +102,31 @@ export default function RutasMap({ points, onPointsResolved, routeName }: RutasM
   const hydratedSignatureRef = useRef<string | null>(null);
   const optimizedSignatureRef = useRef<string | null>(null);
 
-  const pointsSignature = useMemo(() => buildSignature(points), [points]);
+  // Combine points from prop with points from editing route context
+  const effectivePoints = useMemo(() => {
+    const basePoints = Array.isArray(points) ? points : [];
+    const editedRoutePoints = editingRoute?.points ? (Array.isArray(editingRoute.points) ? editingRoute.points : []) : [];
+    
+    // Combine and deduplicate by id
+    const byId = new Map<string, RoutePoint>();
+    basePoints.forEach(p => {
+      const id = p.id || `${p.case_number}-${p.address}`;
+      byId.set(id, p);
+    });
+    editedRoutePoints.forEach((p: any) => {
+      const id = p.id || `${p.case_number}-${p.incident_address || p.address}`;
+      byId.set(id, { ...p, address: p.incident_address || p.address || p.address });
+    });
+    
+    return Array.from(byId.values());
+  }, [points, editingRoute?.points]);
+
+  const pointsSignature = useMemo(() => buildSignature(effectivePoints), [effectivePoints]);
   const displayPoints = useMemo(() => {
     if (optimizedPoints.length >= 2) return optimizedPoints;
     if (resolvedPoints.length > 0) return resolvedPoints;
-    return points;
-  }, [optimizedPoints, resolvedPoints, points]);
+    return effectivePoints;
+  }, [optimizedPoints, resolvedPoints, effectivePoints]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;

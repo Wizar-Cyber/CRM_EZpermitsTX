@@ -3,6 +3,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useRef,
   type ComponentType,
   type LazyExoticComponent,
   type ReactNode,
@@ -14,6 +15,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useVersionCheck } from "@/features/hooks/useVersionCheck";
+import { EditingRouteProvider } from "@/features/contexts/EditingRouteContext";
 import "leaflet/dist/leaflet.css";
 
 import {
@@ -100,7 +103,16 @@ function AuthGate() {
     location === "/register" ||
     location.startsWith("/reset-password");
 
+  // ✅ Verificar nuevas versiones disponibles
+  useVersionCheck();
+
   const MAX_INACTIVITY = SESSION_TIMEOUT_MS;
+
+  // Use a ref so the inactivity timer always calls the latest logout
+  // without needing logout in the useEffect dependency array
+  // (which would cause the timer to reset on every auth state change).
+  const logoutRef = useRef(logout);
+  useEffect(() => { logoutRef.current = logout; }, [logout]);
 
   // ✅ Inactivity control
   useEffect(() => {
@@ -110,7 +122,7 @@ function AuthGate() {
       touchLastActivity();
       inactivityTimer = setTimeout(() => {
         console.warn("⏰ Session closed due to inactivity");
-        logout();
+        logoutRef.current();
       }, MAX_INACTIVITY);
     };
     window.addEventListener("mousemove", resetTimer);
@@ -121,7 +133,8 @@ function AuthGate() {
       window.removeEventListener("keydown", resetTimer);
       clearTimeout(inactivityTimer);
     };
-  }, [logout, MAX_INACTIVITY, touchLastActivity]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once — logoutRef always has latest logout via the effect above
 
   // ✅ Automatic redirect based on authentication state
   useEffect(() => {
@@ -203,31 +216,33 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <SidebarProvider style={style}>
-            <div className="flex h-screen w-full">
-              {!hideSidebar && <AppSidebar />}
-              <div className="flex flex-col flex-1 overflow-hidden">
-                {!hideSidebar && (
-                  <header className="flex items-center justify-between p-4 border-b border-border bg-background sticky top-0 z-50">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <ThemeToggle />
-                  </header>
-                )}
-                <main
-                  className={
-                    hideSidebar
-                      ? "flex-1 overflow-hidden"
-                      : "flex-1 overflow-auto p-3 sm:p-4 md:p-5 lg:p-6 bg-background"
-                  }
-                >
-                  <Router />
-                  {/* 👇 AuthGate now mounts here */}
-                  <AuthGate />
-                </main>
+          <EditingRouteProvider>
+            <SidebarProvider style={style}>
+              <div className="flex h-screen w-full">
+                {!hideSidebar && <AppSidebar />}
+                <div className="flex flex-col flex-1 overflow-hidden">
+                  {!hideSidebar && (
+                    <header className="flex items-center justify-between p-4 border-b border-border bg-background sticky top-0 z-50">
+                      <SidebarTrigger data-testid="button-sidebar-toggle" />
+                      <ThemeToggle />
+                    </header>
+                  )}
+                  <main
+                    className={
+                      hideSidebar
+                        ? "flex-1 overflow-hidden"
+                        : "flex-1 overflow-auto p-3 sm:p-4 md:p-5 lg:p-6 bg-background"
+                    }
+                  >
+                    <Router />
+                    {/* 👇 AuthGate now mounts here */}
+                    <AuthGate />
+                  </main>
+                </div>
               </div>
-            </div>
-          </SidebarProvider>
-          <Toaster position="bottom-right" richColors closeButton />
+            </SidebarProvider>
+            <Toaster position="bottom-right" richColors closeButton />
+          </EditingRouteProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

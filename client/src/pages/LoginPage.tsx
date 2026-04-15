@@ -55,11 +55,11 @@ function LoginPageContent() {
 
   return (
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2 xl:min-h-[100vh]">
-      <div className="hidden bg-card lg:flex items-center justify-center p-10">
+      <div className="hidden bg-black lg:flex items-center justify-center p-0">
         <img
           src="/EZPermitsLOgo.png"
           alt="EZpermitsTX"
-          className="max-h-[78vh] w-auto object-contain"
+          className="h-full w-full object-cover"
         />
       </div>
       <div className="flex items-center justify-center py-12 px-4 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
@@ -68,7 +68,7 @@ function LoginPageContent() {
             <img 
               src="/logo.png" 
               alt="Logo de tu empresa" 
-              className="h-20 w-20 mx-auto rounded-xl bg-card p-2 shadow-lg ring-1 ring-border" 
+              className="h-20 w-20 mx-auto rounded-xl shadow-lg object-contain" 
             />
             <CardTitle className="text-3xl font-bold mt-4">Welcome Back!</CardTitle>
             <CardDescription className="mt-2 text-balance">
