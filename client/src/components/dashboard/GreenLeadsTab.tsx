@@ -19,7 +19,15 @@ interface GreenLead {
   incident_address: string;
   zip_code: string;
   classified_at: string | null;
-  days_waiting: number;
+  days_waiting: number | null;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+interface GreenLeadsResponse {
+  total: number;
+  available: number;
+  leads: GreenLead[];
 }
 
 type SortOption = "days_desc" | "days_asc" | "date_desc" | "date_asc";
@@ -27,6 +35,8 @@ type SortOption = "days_desc" | "days_asc" | "date_desc" | "date_asc";
 export function GreenLeadsTab() {
   const [, setLocation] = useLocation();
   const [leads, setLeads] = useState<GreenLead[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [availableCount, setAvailableCount] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [zipFilter, setZipFilter] = useState("");
@@ -36,13 +46,11 @@ export function GreenLeadsTab() {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        search,
-        zip: zipFilter,
-        sort,
-      });
-      const data = await apiGet<GreenLead[]>(`/dashboard/green-leads?${params.toString()}`);
-      setLeads(data);
+      const params = new URLSearchParams({ search, zip: zipFilter, sort });
+      const data = await apiGet<GreenLeadsResponse>(`/dashboard/green-leads?${params.toString()}`);
+      setLeads(data.leads ?? []);
+      setTotalCount(data.total ?? 0);
+      setAvailableCount(data.available ?? 0);
     } catch (err: any) {
       toast.error(err?.message ?? "Error loading green leads");
     } finally {
@@ -82,7 +90,18 @@ export function GreenLeadsTab() {
   };
 
   const handleRoute = (caseNumbers: string[]) => {
-    sessionStorage.setItem("pendingRouteLeads", JSON.stringify(caseNumbers));
+    // MapView lee de localStorage con key "selectedLeadsForMap"
+    // Formato esperado: Array<{id, address, case_number, lat?, lng?}>
+    const points = leads
+      .filter((l) => caseNumbers.includes(l.case_number))
+      .map((l) => ({
+        id: l.case_number,
+        address: l.incident_address,
+        case_number: l.case_number,
+        lat: l.lat ?? null,
+        lng: l.lng ?? null,
+      }));
+    localStorage.setItem("selectedLeadsForMap", JSON.stringify(points));
     setLocation("/map");
   };
 
@@ -103,9 +122,6 @@ export function GreenLeadsTab() {
     }
   };
 
-  const total = leads.length;
-  const available = leads.length;
-
   return (
     <div className="space-y-5">
       {/* Header with count chips */}
@@ -119,10 +135,10 @@ export function GreenLeadsTab() {
         <div className="flex gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium border border-green-200">
             <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            Total Green: {total}
+            Total Green: {totalCount}
           </span>
           <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-xs font-medium border border-blue-200">
-            Disponibles: {available}
+            Disponibles: {availableCount}
           </span>
         </div>
       </div>

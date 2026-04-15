@@ -594,15 +594,8 @@ router.get("/v2/drilldown", authenticate, async (req, res) => {
   }
 });
 
-/* =========================================================
-   DASHBOARD METRICS  (GET /api/dashboard/metrics?start=YYYY-MM-DD&end=YYYY-MM-DD)
-   - total_leads: houston_311_bcv con consulta != 'red' (incluye NULL, 'green')
-   - new_leads:   houston_311_bcv.created_date_local en rango
-   - leads_in_route: routes.created_at en rango
-   - upcoming_appointments: appointments.date_time >= NOW()
-   - completed_visits: appointments.status IN ('visited','done') en rango por date_time
-   ========================================================= */
-router.get("/metrics", authenticate, async (req, res) => {
+/* LEGACY — reemplazado por el nuevo /metrics de abajo, mantenido por compatibilidad */
+router.get("/metrics-legacy-unused", authenticate, async (req, res) => {
   try {
     const startStr = typeof req.query.start === "string" ? req.query.start : null;
     const endStr = typeof req.query.end === "string" ? req.query.end : null;
@@ -770,6 +763,473 @@ router.get("/chart-data", authenticate, async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching chart data:", err);
     return res.status(500).json({ error: "Error fetching chart data" });
+  }
+});
+
+/* =========================================================
+   METRICS EXTENDED  (GET /api/dashboard/metrics)
+   Incluye reds, quality breakdown, delivery counts, conversion
+   ========================================================= */
+router.get("/metrics", authenticate, async (req, res) => {
+  try {
+    const startStr = typeof req.query.start === "string" ? req.query.start : null;
+    const endStr   = typeof req.query.end   === "string" ? req.query.end   : null;
+    const useRange = !!(startStr && endStr);
+    const rp       = useRange ? [startStr, endStr] : [];
+
+    const dateFilter = useRange
+      ? `created_date_local >= $1::date AND created_date_local < ($2::date + INTERVAL '1 day')`
+      : `created_date_local >= (NOW() - INTERVAL '30 days')`;
+
+    const [[tot], [newL], [inR], [upA], [compV], [totC], [uncl], [enDel], [secAt], [totRed], [qual]] =
+      await Promise.all([
+        pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE consulta IS DISTINCT FROM 'red'`).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE ${dateFilter}`, rp).then(r => r.rows),
+        pool.query(
+          useRange
+            ? `SELECT COUNT(*)::int AS c FROM routes WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')`
+            : `SELECT COUNT(*)::int AS c FROM routes WHERE created_at >= (NOW() - INTERVAL '30 days')`,
+          rp
+        ).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM appointments WHERE date_time >= NOW()`).then(r => r.rows),
+        pool.query(
+          useRange
+            ? `SELECT COUNT(*)::int AS c FROM appointments WHERE status IN ('visited','done') AND date_time >= $1::date AND date_time < ($2::date + INTERVAL '1 day')`
+            : `SELECT COUNT(*)::int AS c FROM appointments WHERE status IN ('visited','done') AND date_time >= (NOW() - INTERVAL '30 days')`,
+          rp
+        ).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM clientes WHERE archived = false`).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE consulta IS DISTINCT FROM 'red' AND LOWER(COALESCE(manual_classification,'')) NOT IN ('green','yellow','blue')`).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE COALESCE(current_state,'NEW') IN ('IN_DELIVERY','SECOND_ATTEMPT')`).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE COALESCE(current_state,'NEW') IN ('IN_DELIVERY','SECOND_ATTEMPT') AND second_attempt_due_at IS NOT NULL AND second_attempt_due_at <= NOW()`).then(r => r.rows),
+        pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE consulta = 'red'`).then(r => r.rows),
+        pool.query(`
+          SELECT
+            CASE
+              WHEN consulta = 'red' THEN 'red'
+              WHEN LOWER(COALESCE(manual_classification,'')) IN ('green','yellow','blue') THEN LOWER(manual_classification)
+              ELSE 'unclassified'
+            END AS bucket,
+            COUNT(*)::int AS value
+          FROM houston_311_bcv
+          GROUP BY bucket
+        `).then(r => r.rows),
+      ]);
+
+    const total_leads      = tot?.c  ?? 0;
+    const new_leads        = newL?.c ?? 0;
+    const leads_in_route   = inR?.c  ?? 0;
+    const upcoming_appointments = upA?.c ?? 0;
+    const completed_visits = compV?.c ?? 0;
+    const total_clients    = totC?.c  ?? 0;
+    const unclassified_leads = uncl?.c ?? 0;
+    const en_delivery      = enDel?.c ?? 0;
+    const second_attempt_due = secAt?.c ?? 0;
+    const red_count        = totRed?.c ?? 0;
+
+    const conversion_rate = total_leads > 0
+      ? Math.round((total_clients / total_leads) * 10000) / 100
+      : 0;
+
+    const COLOR_MAP = { green:"#22c55e", yellow:"#eab308", blue:"#3b82f6", red:"#ef4444", unclassified:"#94a3b8" };
+    const lead_quality = (qual || []).map(r => ({
+      name: r.bucket,
+      value: r.value,
+      fill: COLOR_MAP[r.bucket] ?? "#94a3b8",
+    }));
+
+    return res.json({
+      total_leads, new_leads, leads_in_route,
+      upcoming_appointments, completed_visits,
+      total_clients, unclassified_leads,
+      en_delivery, second_attempt_due,
+      conversion_rate, red_count,
+      lead_quality,
+    });
+  } catch (err) {
+    console.error("❌ /metrics:", err);
+    return res.status(500).json({ error: "Error fetching metrics" });
+  }
+});
+
+/* =========================================================
+   FUNNEL  (GET /api/dashboard/funnel?start=&end=)
+   ========================================================= */
+router.get("/funnel", authenticate, async (req, res) => {
+  try {
+    const today = new Date();
+    const start = toYmd(parseDateOr(req.query.start, new Date(today.getFullYear(), today.getMonth(), 1)));
+    const end   = toYmd(parseDateOr(req.query.end,   today));
+
+    const sql = `
+      WITH period AS (
+        SELECT * FROM houston_311_bcv
+        WHERE created_date_local >= $1::date
+          AND created_date_local < ($2::date + INTERVAL '1 day')
+      )
+      SELECT
+        (SELECT COUNT(*)::int FROM period) AS captured,
+        (SELECT COUNT(*)::int FROM period
+           WHERE LOWER(COALESCE(manual_classification,'')) IN ('green','yellow','blue')) AS qualified,
+        (SELECT COUNT(*)::int FROM houston_311_bcv
+           WHERE sent_to_delivery_date >= $1::date
+             AND sent_to_delivery_date < ($2::date + INTERVAL '1 day')) AS routed,
+        (SELECT COUNT(*)::int FROM houston_311_bcv
+           WHERE contacted_at >= $1::date
+             AND contacted_at < ($2::date + INTERVAL '1 day')) AS contacted,
+        (SELECT COUNT(*)::int FROM clientes c
+           INNER JOIN houston_311_bcv l ON l.case_number = c.case_number
+           WHERE c.created_at >= $1::date
+             AND c.created_at < ($2::date + INTERVAL '1 day')
+             AND c.archived = false) AS clients,
+        (SELECT COUNT(*)::int FROM appointments a
+           INNER JOIN clientes c ON c.id = a.client_id
+           WHERE a.created_at >= $1::date
+             AND a.created_at < ($2::date + INTERVAL '1 day')) AS appointments,
+        (SELECT COUNT(*)::int FROM appointments a
+           INNER JOIN clientes c ON c.id = a.client_id
+           WHERE a.status IN ('visited','done')
+             AND a.date_time >= $1::date
+             AND a.date_time < ($2::date + INTERVAL '1 day')) AS visits_completed
+    `;
+
+    const { rows } = await pool.query(sql, [start, end]);
+    const d = rows[0] || {};
+
+    const steps = [
+      { key:"captured",        label:"Capturados",       value: d.captured        ?? 0 },
+      { key:"qualified",       label:"Clasificados",     value: d.qualified       ?? 0 },
+      { key:"routed",          label:"Enviados Reparto", value: d.routed          ?? 0 },
+      { key:"contacted",       label:"Contactados",      value: d.contacted       ?? 0 },
+      { key:"clients",         label:"Clientes",         value: d.clients         ?? 0 },
+      { key:"appointments",    label:"Citas",            value: d.appointments    ?? 0 },
+      { key:"visits_completed",label:"Visitas Hechas",   value: d.visits_completed ?? 0 },
+    ];
+    return res.json(steps);
+  } catch (err) {
+    console.error("❌ /funnel:", err);
+    return res.status(500).json({ error: "Error fetching funnel" });
+  }
+});
+
+/* =========================================================
+   TRENDS  (GET /api/dashboard/trends?year=YYYY)
+   Compara meses del año solicitado
+   ========================================================= */
+router.get("/trends", authenticate, async (req, res) => {
+  try {
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+
+    const sql = `
+      WITH months AS (
+        SELECT generate_series(1, 12) AS m
+      )
+      SELECT
+        m.m AS month,
+        TO_CHAR(TO_DATE(m.m::text, 'MM'), 'Mon') AS month_name,
+        COALESCE((
+          SELECT COUNT(*)::int FROM houston_311_bcv
+          WHERE EXTRACT(YEAR  FROM created_date_local) = $1
+            AND EXTRACT(MONTH FROM created_date_local) = m.m
+        ), 0) AS new_leads,
+        COALESCE((
+          SELECT COUNT(*)::int FROM clientes c
+          WHERE EXTRACT(YEAR  FROM c.created_at) = $1
+            AND EXTRACT(MONTH FROM c.created_at) = m.m
+            AND c.archived = false
+        ), 0) AS total_clients,
+        COALESCE((
+          SELECT COUNT(*)::int FROM appointments a
+          WHERE a.status IN ('visited','done')
+            AND EXTRACT(YEAR  FROM a.date_time) = $1
+            AND EXTRACT(MONTH FROM a.date_time) = m.m
+        ), 0) AS visits_completed
+      FROM months m
+      ORDER BY m.m
+    `;
+
+    const { rows } = await pool.query(sql, [year]);
+
+    const result = rows.map(r => ({
+      month: r.month,
+      month_name: r.month_name,
+      new_leads: r.new_leads,
+      total_clients: r.total_clients,
+      visits_completed: r.visits_completed,
+      conversion_rate: r.new_leads > 0
+        ? Math.round((r.total_clients / r.new_leads) * 10000) / 100
+        : 0,
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ /trends:", err);
+    return res.status(500).json({ error: "Error fetching trends" });
+  }
+});
+
+/* =========================================================
+   ZIPCODE STATS  (GET /api/dashboard/zipcode-stats?start=&end=)
+   ========================================================= */
+router.get("/zipcode-stats", authenticate, async (req, res) => {
+  try {
+    const today = new Date();
+    const start = toYmd(parseDateOr(req.query.start, new Date(today.getFullYear(), today.getMonth(), 1)));
+    const end   = toYmd(parseDateOr(req.query.end,   today));
+
+    const sql = `
+      SELECT
+        COALESCE(NULLIF(TRIM(zip_code),''), 'Unknown') AS zip_code,
+        COUNT(*)::int AS count
+      FROM houston_311_bcv
+      WHERE created_date_local >= $1::date
+        AND created_date_local < ($2::date + INTERVAL '1 day')
+        AND zip_code IS NOT NULL
+      GROUP BY zip_code
+      ORDER BY count DESC
+      LIMIT 30
+    `;
+
+    const { rows } = await pool.query(sql, [start, end]);
+    const total = rows.reduce((s, r) => s + r.count, 0) || 1;
+    const result = rows.map(r => ({
+      zip_code: r.zip_code,
+      count: r.count,
+      pct: Math.round((r.count / total) * 10000) / 100,
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ /zipcode-stats:", err);
+    return res.status(500).json({ error: "Error fetching zipcode stats" });
+  }
+});
+
+/* =========================================================
+   GREEN LEADS → ROUTE  (GET /api/dashboard/green-leads)
+   Leads clasificados como green que aún no han sido enviados a reparto
+   ========================================================= */
+router.get("/green-leads", authenticate, async (req, res) => {
+  try {
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : null;
+    const zip    = typeof req.query.zip    === "string" ? req.query.zip.trim()    : null;
+    const sort   = typeof req.query.sort   === "string" ? req.query.sort          : "days_desc";
+
+    const validSorts = {
+      days_desc:  "days_waiting DESC NULLS LAST, l.classified_at ASC NULLS LAST",
+      days_asc:   "days_waiting ASC  NULLS LAST, l.classified_at DESC NULLS LAST",
+      date_desc:  "l.classified_at DESC NULLS LAST",
+      date_asc:   "l.classified_at ASC  NULLS LAST",
+    };
+    const orderBy = validSorts[sort] ?? validSorts.days_desc;
+
+    const params = [];
+    let where = `
+      LOWER(COALESCE(l.manual_classification,'')) = 'green'
+      AND COALESCE(l.current_state,'NEW') NOT IN ('IN_DELIVERY','SECOND_ATTEMPT','CONTACTED','CLOSED')
+      AND l.consulta IS DISTINCT FROM 'red'
+    `;
+
+    if (search) {
+      params.push(`%${search}%`);
+      where += ` AND (l.incident_address ILIKE $${params.length} OR l.case_number ILIKE $${params.length})`;
+    }
+    if (zip) {
+      params.push(zip);
+      where += ` AND TRIM(l.zip_code) = $${params.length}`;
+    }
+
+    const sql = `
+      SELECT
+        l.case_number,
+        l.incident_address,
+        COALESCE(NULLIF(TRIM(l.zip_code),''), 'N/A') AS zip_code,
+        l.classified_at,
+        l.lat,
+        l.lng,
+        CASE
+          WHEN l.classified_at IS NOT NULL
+          THEN EXTRACT(DAY FROM NOW() - l.classified_at)::int
+          ELSE NULL
+        END AS days_waiting
+      FROM houston_311_bcv l
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT 500
+    `;
+
+    const { rows } = await pool.query(sql, params);
+
+    const total     = rows.length;
+    const available = rows.filter(r => !r.classified_at || r.days_waiting !== null).length;
+
+    return res.json({ total, available, leads: rows });
+  } catch (err) {
+    console.error("❌ /green-leads:", err);
+    return res.status(500).json({ error: "Error fetching green leads" });
+  }
+});
+
+/* =========================================================
+   MONTHLY REPORT  (GET /api/dashboard/monthly?year=YYYY&month=MM)
+   ========================================================= */
+router.get("/monthly", authenticate, async (req, res) => {
+  try {
+    const now   = new Date();
+    const year  = parseInt(req.query.year,  10) || now.getFullYear();
+    const month = parseInt(req.query.month, 10) || (now.getMonth() + 1);
+
+    const startOfMonth = `${year}-${String(month).padStart(2,"0")}-01`;
+    const endOfMonth   = toYmd(new Date(year, month, 0)); // last day
+
+    const summarySQL = `
+      SELECT
+        TO_CHAR(TO_DATE($3, 'YYYY-MM-DD'), 'FMMonth YYYY') AS label,
+        (SELECT COUNT(*)::int FROM houston_311_bcv
+           WHERE created_date_local >= $1::date AND created_date_local < ($2::date + INTERVAL '1 day')) AS leads,
+        (SELECT COUNT(*)::int FROM houston_311_bcv
+           WHERE LOWER(COALESCE(manual_classification,'')) = 'green'
+             AND classified_at >= $1::date AND classified_at < ($2::date + INTERVAL '1 day')) AS green,
+        (SELECT COUNT(*)::int FROM houston_311_bcv
+           WHERE sent_to_delivery_date >= $1::date AND sent_to_delivery_date < ($2::date + INTERVAL '1 day')) AS delivery,
+        (SELECT COUNT(*)::int FROM appointments
+           WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')) AS appts,
+        (SELECT COUNT(*)::int FROM appointments
+           WHERE status IN ('visited','done')
+             AND date_time >= $1::date AND date_time < ($2::date + INTERVAL '1 day')) AS visits,
+        (SELECT COUNT(*)::int FROM clientes
+           WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')
+             AND archived = false) AS clients
+    `;
+
+    const weeksSQL = `
+      WITH weeks AS (
+        SELECT
+          CEIL(EXTRACT(DAY FROM d.d) / 7.0)::int AS week,
+          MIN(d.d)::date AS week_start,
+          MAX(d.d)::date AS week_end
+        FROM generate_series($1::date, $2::date, '1 day'::interval) AS d(d)
+        GROUP BY week
+      )
+      SELECT
+        w.week,
+        COALESCE((SELECT COUNT(*)::int FROM houston_311_bcv l
+          WHERE l.created_date_local >= w.week_start AND l.created_date_local <= w.week_end + INTERVAL '1 day'), 0) AS new_leads,
+        COALESCE((SELECT COUNT(*)::int FROM houston_311_bcv l
+          WHERE LOWER(COALESCE(l.manual_classification,'')) = 'green'
+            AND l.classified_at >= w.week_start AND l.classified_at <= w.week_end + INTERVAL '1 day'), 0) AS green_classified,
+        COALESCE((SELECT COUNT(*)::int FROM houston_311_bcv l
+          WHERE l.sent_to_delivery_date >= w.week_start AND l.sent_to_delivery_date <= w.week_end + INTERVAL '1 day'), 0) AS delivery_sent,
+        COALESCE((SELECT COUNT(*)::int FROM appointments a
+          WHERE a.created_at >= w.week_start AND a.created_at <= w.week_end + INTERVAL '1 day'), 0) AS appointments,
+        COALESCE((SELECT COUNT(*)::int FROM appointments a
+          WHERE a.status IN ('visited','done')
+            AND a.date_time >= w.week_start AND a.date_time <= w.week_end + INTERVAL '1 day'), 0) AS visits,
+        COALESCE((SELECT COUNT(*)::int FROM clientes c
+          WHERE c.created_at >= w.week_start AND c.created_at <= w.week_end + INTERVAL '1 day'
+            AND c.archived = false), 0) AS new_clients
+      FROM weeks w
+      ORDER BY w.week
+    `;
+
+    const [summaryRes, weeksRes] = await Promise.all([
+      pool.query(summarySQL, [startOfMonth, endOfMonth, startOfMonth]),
+      pool.query(weeksSQL,   [startOfMonth, endOfMonth]),
+    ]);
+
+    const s = summaryRes.rows[0] || {};
+    const conv_pct = s.leads > 0 ? Math.round((s.clients / s.leads) * 10000) / 100 : 0;
+
+    return res.json({
+      label:   s.label || `${year}-${month}`,
+      summary: {
+        leads:    s.leads    ?? 0,
+        green:    s.green    ?? 0,
+        delivery: s.delivery ?? 0,
+        appts:    s.appts    ?? 0,
+        visits:   s.visits   ?? 0,
+        clients:  s.clients  ?? 0,
+        conv_pct,
+      },
+      weeks: weeksRes.rows,
+    });
+  } catch (err) {
+    console.error("❌ /monthly:", err);
+    return res.status(500).json({ error: "Error fetching monthly report" });
+  }
+});
+
+/* =========================================================
+   CSV EXPORTS
+   ========================================================= */
+router.get("/csv/monthly", authenticate, async (req, res) => {
+  try {
+    const now   = new Date();
+    const year  = parseInt(req.query.year,  10) || now.getFullYear();
+    const month = parseInt(req.query.month, 10) || (now.getMonth() + 1);
+    const start = `${year}-${String(month).padStart(2,"0")}-01`;
+    const end   = toYmd(new Date(year, month, 0));
+
+    const { rows } = await pool.query(`
+      SELECT
+        to_char(created_date_local, 'YYYY-MM-DD') AS fecha,
+        case_number,
+        incident_address,
+        COALESCE(zip_code,'') AS zip_code,
+        COALESCE(manual_classification,'unclassified') AS clasificacion,
+        COALESCE(current_state,'NEW') AS estado,
+        COALESCE(delivery_attempts::text,'0') AS intentos_reparto
+      FROM houston_311_bcv
+      WHERE created_date_local >= $1::date
+        AND created_date_local < ($2::date + INTERVAL '1 day')
+      ORDER BY created_date_local
+    `, [start, end]);
+
+    const header = "fecha,case_number,direccion,zip,clasificacion,estado,intentos_reparto\n";
+    const csvRows = rows.map(r =>
+      [r.fecha, r.case_number,
+       `"${(r.incident_address||"").replace(/"/g,'""')}"`,
+       r.zip_code, r.clasificacion, r.estado, r.intentos_reparto
+      ].join(",")
+    );
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="reporte-${year}-${String(month).padStart(2,"0")}.csv"`);
+    return res.send(header + csvRows.join("\n"));
+  } catch (err) {
+    console.error("❌ /csv/monthly:", err);
+    return res.status(500).json({ error: "Error generating CSV" });
+  }
+});
+
+router.get("/csv/geographic", authenticate, async (req, res) => {
+  try {
+    const today = new Date();
+    const start = toYmd(parseDateOr(req.query.start, new Date(today.getFullYear(), today.getMonth(), 1)));
+    const end   = toYmd(parseDateOr(req.query.end,   today));
+
+    const { rows } = await pool.query(`
+      SELECT
+        COALESCE(NULLIF(TRIM(zip_code),''), 'Unknown') AS zip_code,
+        COUNT(*)::int AS leads,
+        ROUND(COUNT(*)::numeric * 100 / SUM(COUNT(*)) OVER(), 2) AS pct
+      FROM houston_311_bcv
+      WHERE created_date_local >= $1::date
+        AND created_date_local < ($2::date + INTERVAL '1 day')
+        AND zip_code IS NOT NULL
+      GROUP BY zip_code
+      ORDER BY leads DESC
+    `, [start, end]);
+
+    const header = "zip_code,leads,pct\n";
+    const csvRows = rows.map(r => `${r.zip_code},${r.leads},${r.pct}`);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="geografico-${start}-${end}.csv"`);
+    return res.send(header + csvRows.join("\n"));
+  } catch (err) {
+    console.error("❌ /csv/geographic:", err);
+    return res.status(500).json({ error: "Error generating CSV" });
   }
 });
 

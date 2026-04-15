@@ -188,9 +188,16 @@ leadsRouter.patch("/:case_number/manual_classification", async (req, res) => {
       });
     }
 
+    // Si se clasifica como green, registramos la fecha de clasificación
+    const classifiedAtExpr = manual_classification === "green"
+      ? ", classified_at = COALESCE(classified_at, NOW())"
+      : manual_classification === null
+        ? ", classified_at = NULL"
+        : "";
+
     const result = await pool.query(
       `UPDATE houston_311_bcv
-       SET manual_classification = $1
+       SET manual_classification = $1${classifiedAtExpr}
        WHERE TRIM(case_number) = TRIM($2)`,
       [manual_classification, cleanCase]
     );
@@ -212,5 +219,52 @@ leadsRouter.patch("/:case_number/manual_classification", async (req, res) => {
 });
 
 
+
+// 📍 PATCH: Enviar lead a reparto (delivery)
+// Flujo: green → IN_DELIVERY → (15-20 días sin contacto) → SECOND_ATTEMPT
+leadsRouter.patch("/:case_number/delivery", async (req, res) => {
+  const { case_number } = req.params;
+
+  try {
+    const cleanCase = case_number.trim();
+
+    // Verificar que el lead existe y está en estado válido para enviar
+    const check = await pool.query(
+      `SELECT current_state, delivery_attempts FROM houston_311_bcv WHERE TRIM(case_number) = TRIM($1) LIMIT 1`,
+      [cleanCase]
+    );
+
+    if (check.rowCount === 0) {
+      return res.status(404).json({ error: `Case '${cleanCase}' not found` });
+    }
+
+    const current = check.rows[0];
+    const attempts = (current.delivery_attempts ?? 0) + 1;
+
+    // Segundo intento programado a los 17 días (punto medio de 15-20)
+    const result = await pool.query(
+      `UPDATE houston_311_bcv
+       SET current_state          = 'IN_DELIVERY',
+           sent_to_delivery_date  = NOW(),
+           delivery_attempts      = $1,
+           second_attempt_due_at  = NOW() + INTERVAL '17 days'
+       WHERE TRIM(case_number) = TRIM($2)`,
+      [attempts, cleanCase]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: `Case '${cleanCase}' not found` });
+    }
+
+    return res.json({
+      success: true,
+      message: `Lead '${cleanCase}' enviado a reparto (intento #${attempts})`,
+      delivery_attempts: attempts,
+    });
+  } catch (err) {
+    console.error("❌ Error updating delivery state:", err);
+    res.status(500).json({ error: "Database update failed" });
+  }
+});
 
 export default leadsRouter;
