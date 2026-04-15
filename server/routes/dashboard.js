@@ -807,8 +807,8 @@ router.get("/metrics", authenticate, async (req, res) => {
           WITH counts AS (
             SELECT
               CASE
-                WHEN LOWER(COALESCE(consulta,'')) IN ('green','blue','yellow','red')
-                  THEN LOWER(consulta)
+                WHEN LOWER(COALESCE(manual_classification, consulta, '')) IN ('green','blue','yellow','red')
+                  THEN LOWER(COALESCE(manual_classification, consulta))
                 ELSE 'unclassified'
               END AS bucket,
               COUNT(*)::int AS value
