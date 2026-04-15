@@ -26,8 +26,9 @@ import { KpiCard } from "./KpiCard";
 import { apiGet } from "@/lib/api";
 
 interface LeadQualityItem {
-  classification: string;
-  count: number;
+  name: string;
+  value: number;
+  fill?: string;
 }
 
 interface Metrics {
@@ -52,8 +53,9 @@ interface ChartDataPoint {
 }
 
 interface FunnelStep {
+  key: string;
   label: string;
-  count: number;
+  value: number;
 }
 
 interface OverviewTabProps {
@@ -86,13 +88,13 @@ const QUALITY_COLORS: Record<string, string> = {
 };
 
 function LeadQualityDonut({ data }: { data: LeadQualityItem[] }) {
-  const total = data.reduce((s, d) => s + d.count, 0);
+  const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return <p className="text-xs text-muted-foreground">No data</p>;
 
   const segments: { pct: number; color: string; label: string }[] = data.map((d) => ({
-    pct: d.count / total,
-    color: QUALITY_COLORS[d.classification?.toLowerCase()] ?? "#9ca3af",
-    label: d.classification ?? "N/A",
+    pct: d.value / total,
+    color: d.fill ?? QUALITY_COLORS[d.name?.toLowerCase()] ?? "#9ca3af",
+    label: d.name ?? "N/A",
   }));
 
   // Build SVG donut
@@ -410,8 +412,8 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                 const widthClass = FUNNEL_WIDTHS[idx] ?? "30%";
                 const nextStep = funnelData[idx + 1];
                 const dropPct =
-                  nextStep && step.count > 0
-                    ? (((step.count - nextStep.count) / step.count) * 100).toFixed(0)
+                  nextStep && step.value > 0
+                    ? (((step.value - nextStep.value) / step.value) * 100).toFixed(0)
                     : null;
 
                 return (
@@ -425,7 +427,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                       }}
                     >
                       <span className="truncate">{step.label}</span>
-                      <span className="ml-2 font-bold">{step.count}</span>
+                      <span className="ml-2 font-bold">{step.value}</span>
                     </div>
                     {dropPct && (
                       <p className="text-[10px] text-red-500 pl-1 mt-0.5">

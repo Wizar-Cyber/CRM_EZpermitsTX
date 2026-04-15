@@ -1026,8 +1026,7 @@ router.get("/green-leads", authenticate, async (req, res) => {
     const params = [];
     let where = `
       LOWER(COALESCE(l.manual_classification,'')) = 'green'
-      AND COALESCE(l.current_state,'NEW') NOT IN ('IN_DELIVERY','SECOND_ATTEMPT','CONTACTED','CLOSED')
-      AND l.consulta IS DISTINCT FROM 'red'
+      AND COALESCE(l.current_state,'NEW') NOT IN ('IN_DELIVERY','EN_REPARTO','SECOND_ATTEMPT','CONTACTED','CLOSED')
     `;
 
     if (search) {
