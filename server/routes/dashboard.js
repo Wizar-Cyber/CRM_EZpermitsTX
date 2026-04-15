@@ -804,15 +804,24 @@ router.get("/metrics", authenticate, async (req, res) => {
         pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE COALESCE(current_state,'NEW') IN ('IN_DELIVERY','SECOND_ATTEMPT') AND second_attempt_due_at IS NOT NULL AND second_attempt_due_at <= NOW()`).then(r => r.rows),
         pool.query(`SELECT COUNT(*)::int AS c FROM houston_311_bcv WHERE consulta = 'red'`).then(r => r.rows),
         pool.query(`
-          SELECT
-            CASE
-              WHEN consulta = 'red' THEN 'red'
-              WHEN LOWER(COALESCE(manual_classification,'')) IN ('green','yellow','blue') THEN LOWER(manual_classification)
-              ELSE 'unclassified'
-            END AS bucket,
-            COUNT(*)::int AS value
-          FROM houston_311_bcv
-          GROUP BY bucket
+          WITH counts AS (
+            SELECT
+              CASE
+                WHEN LOWER(COALESCE(consulta,'')) IN ('green','blue','yellow','red')
+                  THEN LOWER(consulta)
+                ELSE 'unclassified'
+              END AS bucket,
+              COUNT(*)::int AS value
+            FROM houston_311_bcv
+            GROUP BY bucket
+          )
+          SELECT b.bucket, COALESCE(c.value, 0) AS value
+          FROM (VALUES ('green'),('blue'),('yellow'),('red'),('unclassified')) AS b(bucket)
+          LEFT JOIN counts c ON c.bucket = b.bucket
+          ORDER BY CASE b.bucket
+            WHEN 'green' THEN 1 WHEN 'blue' THEN 2
+            WHEN 'yellow' THEN 3 WHEN 'red' THEN 4
+            ELSE 5 END
         `).then(r => r.rows),
       ]);
 
@@ -831,12 +840,15 @@ router.get("/metrics", authenticate, async (req, res) => {
       ? Math.round((total_clients / total_leads) * 10000) / 100
       : 0;
 
-    const COLOR_MAP = { green:"#22c55e", yellow:"#eab308", blue:"#3b82f6", red:"#ef4444", unclassified:"#94a3b8" };
-    const lead_quality = (qualRows || []).map(r => ({
-      name: r.bucket,
-      value: r.value,
-      fill: COLOR_MAP[r.bucket] ?? "#94a3b8",
-    }));
+    const COLOR_MAP = { green:"#22c55e", blue:"#3b82f6", yellow:"#eab308", red:"#ef4444", unclassified:"#94a3b8" };
+    // Only include buckets that have leads (value > 0)
+    const lead_quality = (qualRows || [])
+      .filter(r => r.value > 0)
+      .map(r => ({
+        name: r.bucket,
+        value: r.value,
+        fill: COLOR_MAP[r.bucket] ?? "#94a3b8",
+      }));
 
     return res.json({
       total_leads, new_leads, leads_in_route,

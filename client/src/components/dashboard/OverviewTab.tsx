@@ -81,10 +81,11 @@ const FUNNEL_COLORS = [
 const FUNNEL_WIDTHS = ["100%", "75%", "50%", "35%"];
 
 const QUALITY_COLORS: Record<string, string> = {
-  green: "#16a34a",
-  yellow: "#ca8a04",
-  blue: "hsl(214, 71%, 28%)",
-  "n/a": "#9ca3af",
+  green: "#22c55e",
+  blue: "#3b82f6",
+  yellow: "#eab308",
+  red: "#ef4444",
+  unclassified: "#94a3b8",
 };
 
 function LeadQualityDonut({ data }: { data: LeadQualityItem[] }) {
@@ -139,8 +140,9 @@ function LeadQualityDonut({ data }: { data: LeadQualityItem[] }) {
               className="inline-block w-2 h-2 rounded-full"
               style={{ backgroundColor: seg.color }}
             />
-            <span className="text-[10px] text-muted-foreground capitalize">
-              {seg.label} {Math.round(seg.pct * 100)}%
+            <span className="text-[10px] text-muted-foreground">
+              {seg.label === "unclassified" ? "Sin clasif." : seg.label.charAt(0).toUpperCase() + seg.label.slice(1)}{" "}
+              <span className="font-medium">{Math.round(seg.pct * 100)}%</span>
             </span>
           </div>
         ))}
