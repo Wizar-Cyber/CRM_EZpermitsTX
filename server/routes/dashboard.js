@@ -719,43 +719,46 @@ router.get("/metrics-legacy-unused", authenticate, async (req, res) => {
 router.get("/chart-data", authenticate, async (req, res) => {
   try {
     const startStr = typeof req.query.start === "string" ? req.query.start : null;
-    const endStr = typeof req.query.end === "string" ? req.query.end : null;
+    const endStr   = typeof req.query.end   === "string" ? req.query.end   : null;
+    const gran     = typeof req.query.granularity === "string" ? req.query.granularity : "weekly";
+
+    // Map frontend granularity → postgres interval + trunc unit + label format
+    const granMap = {
+      daily:   { interval: "1 day",   trunc: "day",   fmt: "Mon DD" },
+      weekly:  { interval: "1 week",  trunc: "week",  fmt: "Mon DD" },
+      monthly: { interval: "1 month", trunc: "month", fmt: "Mon YYYY" },
+    };
+    const { interval, trunc, fmt } = granMap[gran] ?? granMap.weekly;
 
     const useRange = !!(startStr && endStr);
-    const params = useRange ? [startStr, endStr] : [];
+    const params   = useRange ? [startStr, endStr] : [];
 
     const series = useRange
-      ? `generate_series($1::date, $2::date, '1 week')`
-      : `generate_series((NOW() - INTERVAL '12 weeks')::date, NOW()::date, '1 week')`;
+      ? `generate_series($1::date, $2::date, '${interval}'::interval)`
+      : `generate_series((NOW() - INTERVAL '12 weeks')::date, NOW()::date, '${interval}'::interval)`;
 
     const sql = `
-      WITH weeks AS (
-        SELECT date_trunc('week', ${series}) AS week_start
+      WITH buckets AS (
+        SELECT date_trunc('${trunc}', gs::date) AS bucket_start
+        FROM ${series} gs
       )
       SELECT
-        to_char(week_start, 'Mon DD') AS label,
-
-        /* Leads (houston_311_bcv) por semana de created_date_local */
+        to_char(bucket_start, '${fmt}') AS label,
         COALESCE((
           SELECT COUNT(*) FROM houston_311_bcv
-          WHERE date_trunc('week', created_date_local) = week_start
+          WHERE date_trunc('${trunc}', created_date_local) = bucket_start
         ), 0) AS new_leads,
-
-        /* Appointments creadas por semana de created_at */
         COALESCE((
           SELECT COUNT(*) FROM appointments
-          WHERE date_trunc('week', created_at) = week_start
+          WHERE date_trunc('${trunc}', created_at) = bucket_start
         ), 0) AS appointments_created,
-
-        /* Visitas completadas por semana de date_time */
         COALESCE((
           SELECT COUNT(*) FROM appointments
           WHERE status IN ('visited','done')
-            AND date_trunc('week', date_time) = week_start
+            AND date_trunc('${trunc}', date_time) = bucket_start
         ), 0) AS visits_completed
-
-      FROM weeks
-      ORDER BY week_start ASC;
+      FROM buckets
+      ORDER BY bucket_start ASC
     `;
 
     const { rows } = await pool.query(sql, params);

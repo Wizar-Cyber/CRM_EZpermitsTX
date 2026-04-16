@@ -168,7 +168,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
         apiGet<Metrics>(
           `/dashboard/metrics?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`
         ),
-        apiGet<FunnelStep[]>("/dashboard/funnel"),
+        apiGet<FunnelStep[]>(`/dashboard/funnel?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`),
       ]);
       setMetrics(m);
       setFunnelData(f);
