@@ -1040,7 +1040,7 @@ router.get("/green-leads", authenticate, async (req, res) => {
 
     const params = [];
     let where = `
-      LOWER(COALESCE(l.manual_classification,'')) = 'green'
+      LOWER(COALESCE(l.manual_classification, l.consulta, '')) = 'green'
       AND COALESCE(l.current_state,'NEW') NOT IN ('IN_DELIVERY','EN_REPARTO','SECOND_ATTEMPT','CONTACTED','CLOSED')
     `;
 
