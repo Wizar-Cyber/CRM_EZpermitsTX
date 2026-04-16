@@ -844,14 +844,12 @@ router.get("/metrics", authenticate, async (req, res) => {
       : 0;
 
     const COLOR_MAP = { green:"#22c55e", blue:"#3b82f6", yellow:"#eab308", red:"#ef4444", unclassified:"#94a3b8" };
-    // Only include buckets that have leads (value > 0)
-    const lead_quality = (qualRows || [])
-      .filter(r => r.value > 0)
-      .map(r => ({
-        name: r.bucket,
-        value: r.value,
-        fill: COLOR_MAP[r.bucket] ?? "#94a3b8",
-      }));
+    // Always return all 4 main colors + unclassified (even if value = 0)
+    const lead_quality = (qualRows || []).map(r => ({
+      name: r.bucket,
+      value: Number(r.value),
+      fill: COLOR_MAP[r.bucket] ?? "#94a3b8",
+    }));
 
     return res.json({
       total_leads, new_leads, leads_in_route,

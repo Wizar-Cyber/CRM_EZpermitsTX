@@ -88,17 +88,25 @@ const QUALITY_COLORS: Record<string, string> = {
   unclassified: "#94a3b8",
 };
 
+const QUALITY_LABELS: Record<string, string> = {
+  green: "Green",
+  blue: "Blue",
+  yellow: "Yellow",
+  red: "Red",
+  unclassified: "Sin color",
+};
+
+// The 4 main colors always shown in legend order
+const MAIN_COLORS = ["green", "blue", "yellow", "red"];
+
 function LeadQualityDonut({ data }: { data: LeadQualityItem[] }) {
+  const byName = Object.fromEntries(data.map((d) => [d.name, d]));
   const total = data.reduce((s, d) => s + d.value, 0);
-  if (total === 0) return <p className="text-xs text-muted-foreground">No data</p>;
 
-  const segments: { pct: number; color: string; label: string }[] = data.map((d) => ({
-    pct: d.value / total,
-    color: d.fill ?? QUALITY_COLORS[d.name?.toLowerCase()] ?? "#9ca3af",
-    label: d.name ?? "N/A",
-  }));
+  // Only draw arcs for buckets with value > 0
+  const activeSegments = data.filter((d) => d.value > 0);
+  const activeTotal = activeSegments.reduce((s, d) => s + d.value, 0);
 
-  // Build SVG donut
   const radius = 28;
   const cx = 34;
   const cy = 34;
@@ -106,43 +114,60 @@ function LeadQualityDonut({ data }: { data: LeadQualityItem[] }) {
   const circumference = 2 * Math.PI * radius;
 
   let offset = 0;
-  const arcs = segments.map((seg) => {
-    const dash = seg.pct * circumference;
-    const gap = circumference - dash;
-    const arc = { dash, gap, offset, color: seg.color, label: seg.label, pct: seg.pct };
+  const arcs = activeSegments.map((d) => {
+    const pct = activeTotal > 0 ? d.value / activeTotal : 0;
+    const dash = pct * circumference;
+    const arc = { dash, gap: circumference - dash, offset, color: d.fill ?? QUALITY_COLORS[d.name] ?? "#9ca3af" };
     offset += dash;
     return arc;
   });
 
+  // Legend: always show the 4 main colors first, then "Sin color" if it has value
+  const legendItems = [
+    ...MAIN_COLORS.map((key) => ({
+      key,
+      label: QUALITY_LABELS[key],
+      color: QUALITY_COLORS[key],
+      value: byName[key]?.value ?? 0,
+    })),
+    ...(byName["unclassified"]?.value
+      ? [{ key: "unclassified", label: "Sin color", color: QUALITY_COLORS.unclassified, value: byName["unclassified"].value }]
+      : []),
+  ];
+
   return (
     <div className="flex items-center gap-3 mt-1">
-      <svg width="68" height="68" viewBox="0 0 68 68">
-        {arcs.map((arc, i) => (
-          <circle
-            key={i}
-            cx={cx}
-            cy={cy}
-            r={radius}
-            fill="none"
-            stroke={arc.color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${arc.dash} ${arc.gap}`}
-            strokeDashoffset={-arc.offset + circumference * 0.25}
-            transform={`rotate(-90 ${cx} ${cy})`}
-          />
-        ))}
-        <circle cx={cx} cy={cy} r={radius - strokeWidth / 2 - 2} fill="var(--card)" />
-      </svg>
-      <div className="flex flex-col gap-0.5">
-        {segments.map((seg) => (
-          <div key={seg.label} className="flex items-center gap-1">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: seg.color }}
+      {total > 0 ? (
+        <svg width="68" height="68" viewBox="0 0 68 68" className="shrink-0">
+          {arcs.map((arc, i) => (
+            <circle
+              key={i}
+              cx={cx} cy={cy} r={radius}
+              fill="none"
+              stroke={arc.color}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${arc.dash} ${arc.gap}`}
+              strokeDashoffset={-arc.offset + circumference * 0.25}
+              transform={`rotate(-90 ${cx} ${cy})`}
             />
-            <span className="text-[10px] text-muted-foreground">
-              {seg.label === "unclassified" ? "Sin clasif." : seg.label.charAt(0).toUpperCase() + seg.label.slice(1)}{" "}
-              <span className="font-medium">{Math.round(seg.pct * 100)}%</span>
+          ))}
+          <circle cx={cx} cy={cy} r={radius - strokeWidth / 2 - 2} fill="var(--card)" />
+        </svg>
+      ) : (
+        <div className="w-[68px] h-[68px] shrink-0 rounded-full border-4 border-muted" />
+      )}
+      <div className="flex flex-col gap-0.5">
+        {legendItems.map((item) => (
+          <div key={item.key} className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: item.color, opacity: item.value === 0 ? 0.35 : 1 }}
+            />
+            <span className={`text-[10px] ${item.value === 0 ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
+              {item.label}
+            </span>
+            <span className={`text-[10px] font-semibold ml-auto pl-2 ${item.value === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>
+              {item.value === 0 ? "—" : item.value.toLocaleString()}
             </span>
           </div>
         ))}
