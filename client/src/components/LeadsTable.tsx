@@ -111,11 +111,11 @@ export function LeadsTable() {
   type PageTab = "active" | "classified";
 
   const statusColors = {
-    GREEN: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-    YELLOW: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    RED: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
-    BLUE: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-    DEFAULT: "bg-gray-500/10 text-gray-700 dark:text-gray-400",
+    GREEN: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
+    YELLOW: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+    RED: "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
+    BLUE: "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+    DEFAULT: "bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-700",
   };
 
   type MapItem = {
@@ -658,7 +658,7 @@ export function LeadsTable() {
     (l: any) => !MANUAL_SET.has(((l as any).manual_classification || "").toLowerCase())
   );
   const classifiedBase = nonDiscardedLeads.filter(
-    (l: any) => MANUAL_SET.has(((l as any).manual_classification || "").toLowerCase())
+    (l: any) => MANUAL_SET.has(((l as any).manual_classification || "").toLowerCase()) && (l as any).manual_classification !== 'red' && (l as any).consulta !== 'red'
   );
 
   const sortedLeads = useMemo(() => sortAndFilter(activeBase), [activeBase, searchTerm, colorFilter, sortRules]);
@@ -994,8 +994,8 @@ export function LeadsTable() {
   const Table = ({ list }: { list: Lead[] }) => (
       <div className="rounded-2xl border border-border bg-card overflow-x-auto">
         <table className="w-full min-w-[700px] table-auto">
-        <thead className="bg-muted/50">
-          <tr className="text-center">
+        <thead>
+          <tr className="bg-gradient-to-r from-slate-800 to-slate-700 text-center">
             <th className="p-3 w-10">
               <Checkbox
                 checked={selectedLeads.size === list.length && !!list.length}
@@ -1012,24 +1012,24 @@ export function LeadsTable() {
               <th key={col} className={`p-3 text-center align-middle ${col === "incident_address" ? "w-[30%]" : ""}`}>
                 <button
                   onClick={() => upsertSortRule(col as SortField)}
-                  className="flex w-full items-center justify-center gap-1 text-center font-semibold text-sm hover:underline whitespace-nowrap"
+                  className="flex w-full items-center justify-center gap-1 text-center font-semibold text-sm text-white/90 hover:text-white whitespace-nowrap"
                 >
                   {title}
                   <ArrowUpDown className="w-3 h-3" />
                 </button>
               </th>
             ))}
-            <th className="p-3 text-center align-middle font-semibold text-sm w-28">Actions</th>
+            <th className="p-3 text-center align-middle font-semibold text-sm text-white/90 w-28">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {list.map((lead) => {
+          {list.map((lead, idx) => {
             const scoreResult = getLeadScore(lead);
             const colorKey = scoreResult.color;
             return (
               <tr
                 key={lead.case_number}
-                className="border-t hover:bg-muted/40"
+                className={`border-t hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${idx % 2 === 0 ? "" : "bg-slate-50/50 dark:bg-slate-900/20"}`}
               >
                 <td className="p-3 text-center align-middle">
                   <div className="flex justify-center">

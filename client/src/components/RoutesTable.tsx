@@ -84,29 +84,27 @@ export function RoutesTable({
 
   return (
     <div className="w-full">
-      <h2 className="text-2xl font-semibold mb-4">Saved Routes</h2>
-
       <Card className="rounded-2xl border border-border overflow-hidden">
         <table className="w-full" data-testid="table-routes">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="p-4 text-center"><SortHeader field="name" label="Route Name" /></th>
-              <th className="p-4 text-center"><SortHeader field="created_by" label="Created By" /></th>
-              <th className="p-4 text-center"><SortHeader field="created_at" label="Created" /></th>
-              <th className="p-4 text-center"><SortHeader field="scheduled_on" label="Scheduled" /></th>
+          <thead>
+            <tr className="bg-gradient-to-r from-slate-800 to-slate-700">
+              <th className="p-4 text-center text-white/90 font-semibold text-sm"><SortHeader field="name" label="Route Name" /></th>
+              <th className="p-4 text-center text-white/90 font-semibold text-sm"><SortHeader field="created_by" label="Created By" /></th>
+              <th className="p-4 text-center text-white/90 font-semibold text-sm"><SortHeader field="created_at" label="Created" /></th>
+              <th className="p-4 text-center text-white/90 font-semibold text-sm"><SortHeader field="scheduled_on" label="Scheduled" /></th>
               {routes.some(r => r.updated_at) && (
-                <th className="p-4 text-center"><SortHeader field="updated_at" label="Last Update" /></th>
+                <th className="p-4 text-center text-white/90 font-semibold text-sm"><SortHeader field="updated_at" label="Last Update" /></th>
               )}
-              <th className="p-4 text-center"><SortHeader field="points_count" label="Points" /></th>
-              <th className="p-4 text-center font-semibold text-sm">Actions</th>
+              <th className="p-4 text-center text-white/90 font-semibold text-sm"><SortHeader field="points_count" label="Points" /></th>
+              <th className="p-4 text-center text-white/90 font-semibold text-sm">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {sortedRoutes.map((route) => (
+            {sortedRoutes.map((route, idx) => (
               <tr
                 key={route.id}
-                className="border-t border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                className={`border-t border-border hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${idx % 2 === 0 ? "" : "bg-slate-50/50 dark:bg-slate-900/20"}`}
                 data-testid={`row-route-${route.id}`}
                 onClick={() => onSelectRoute(route)}
               >
@@ -140,9 +138,13 @@ export function RoutesTable({
                       : "-"}
                   </td>
                 )}
-                <td className="p-4 text-center">{route.points_count ?? route.points?.length ?? 0}</td>
+                <td className="p-4 text-center">
+                  <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                    {route.points_count ?? route.points?.length ?? 0}
+                  </span>
+                </td>
                 <td className="p-4">
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-1.5">
                     <Button
                       size="icon"
                       variant="ghost"
@@ -152,8 +154,9 @@ export function RoutesTable({
                       }}
                       title="Download PDF"
                       data-testid={`button-download-${route.id}`}
+                      className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                     >
-                      <FileDown className="w-4 h-4" />
+                      <FileDown className="w-4 h-4 text-slate-600" />
                     </Button>
 
                     <Button
@@ -165,8 +168,9 @@ export function RoutesTable({
                       }}
                       title="Edit Map"
                       data-testid={`button-edit-${route.id}`}
+                      className="h-8 w-8 hover:bg-blue-50 dark:hover:bg-blue-950/30 cursor-pointer"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-4 h-4 text-blue-600" />
                     </Button>
                     <Button
                       size="icon"
@@ -176,8 +180,9 @@ export function RoutesTable({
                         onDeleteRequest(route.id);
                       }}
                       data-testid={`button-delete-${route.id}`}
+                      className="h-8 w-8 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </div>
                 </td>

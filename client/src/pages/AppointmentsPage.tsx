@@ -314,33 +314,42 @@ useEffect(() => {
 
   return (
     <div className="w-full space-y-4 relative">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-2xl font-semibold">Appointments</h2>
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1 bg-muted rounded-lg p-1">
-            {[{ name: "Month", view: Views.MONTH }, { name: "Week", view: Views.WEEK }, { name: "Day", view: Views.DAY }].map(({ name, view: v }) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                  view === v ? "bg-background shadow-sm" : ""
-                }`}
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <CalendarCheck className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Schedule</span>
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Appointments</h2>
+            <p className="text-violet-200 text-sm mt-0.5">Manage client visits and scheduled appointments</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1 bg-white/15 backdrop-blur-sm rounded-xl p-1 border border-white/20">
+              {[{ name: "Month", view: Views.MONTH }, { name: "Week", view: Views.WEEK }, { name: "Day", view: Views.DAY }].map(({ name, view: v }) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+                    view === v ? "bg-white text-violet-700 shadow-sm" : "text-white/80 hover:text-white hover:bg-white/10"
+                  }`}
               >
                 {name}
               </button>
             ))}
           </div>
-          <Button
-            onClick={() => {
-              setSelectedEvent({ date_time: addMinutes(new Date(), 5).toISOString() });
-              setShowModal(true);
-            }}
-            className="rounded-2xl"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Appointment
-          </Button>
+            <Button
+              onClick={() => {
+                setSelectedEvent({ date_time: addMinutes(new Date(), 5).toISOString() });
+                setShowModal(true);
+              }}
+              className="bg-white text-violet-700 hover:bg-violet-50 font-semibold border-0 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Appointment
+            </Button>
+          </div>
         </div>
       </div>
 

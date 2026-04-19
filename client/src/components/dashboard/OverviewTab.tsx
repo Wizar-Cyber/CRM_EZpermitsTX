@@ -10,22 +10,20 @@ import {
   CheckCircle2,
   RotateCcw,
   TrendingUp,
-  PieChart,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "./KpiCard";
 import { apiGet } from "@/lib/api";
 
-interface LeadQualityItem {
+export interface LeadQualityItem {
   name: string;
   value: number;
   fill?: string;
@@ -65,20 +63,7 @@ interface OverviewTabProps {
 
 type Granularity = "daily" | "weekly" | "monthly";
 
-const CHART_COLORS = {
-  blue: "hsl(214, 71%, 28%)",
-  amber: "hsl(40, 85%, 45%)",
-  green: "hsl(160, 70%, 38%)",
-};
-
-const FUNNEL_COLORS = [
-  "hsl(214, 71%, 28%)",
-  "hsl(40, 85%, 45%)",
-  "hsl(160, 70%, 38%)",
-  "hsl(160, 60%, 25%)",
-];
-
-const FUNNEL_WIDTHS = ["100%", "75%", "50%", "35%"];
+const FUNNEL_GRADIENTS = ["grad1", "grad2", "grad3", "grad4", "grad5"];
 
 const QUALITY_COLORS: Record<string, string> = {
   green: "#22c55e",
@@ -196,7 +181,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
         apiGet<FunnelStep[]>(`/dashboard/funnel?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`),
       ]);
       setMetrics(m);
-      setFunnelData(f);
+      setFunnelData(Array.isArray(f) ? f : []);
     } catch (err: any) {
       toast.error(err?.message ?? "Error loading overview");
     } finally {
@@ -210,7 +195,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
         const data = await apiGet<ChartDataPoint[]>(
           `/dashboard/chart-data?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}&granularity=${granularity}`
         );
-        setChartData(data);
+        setChartData(Array.isArray(data) ? data : []);
       } catch (err: any) {
         toast.error(err?.message ?? "Error loading chart");
       }
@@ -235,8 +220,6 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
       </div>
     );
   }
-
-  const quality = metrics?.lead_quality ?? [];
 
   return (
     <div className="space-y-6">
@@ -267,62 +250,44 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
       )}
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="Total Leads"
           value={metrics?.total_leads ?? "—"}
-          icon={<Users className="w-4 h-4 text-blue-700" />}
-          iconBg="bg-blue-50"
+          icon={<Users className="w-4 h-4" />}
+          iconBg="bg-blue-50 text-blue-500"
           subtitle="Leads totales en el sistema"
+          sparkline={{ color: "#3b82f6", gradientId: "spk-total", data: [10, 20, 15, 30, 25, 45, 50] }}
         />
         <KpiCard
           title="Sin Clasificar"
           value={metrics?.unclassified_leads ?? "—"}
-          icon={<HelpCircle className="w-4 h-4 text-amber-700" />}
-          iconBg="bg-amber-50"
+          icon={<HelpCircle className="w-4 h-4" />}
+          iconBg="bg-amber-50 text-amber-500"
           alert={(metrics?.unclassified_leads ?? 0) > 0}
           subtitle="Leads pendientes de clasificación"
+          sparkline={{ color: "#ef4444", gradientId: "spk-unclass", data: [10, 15, 12, 25, 22, 35, 40] }}
         />
         <KpiCard
           title="En Delivery"
           value={metrics?.en_delivery ?? "—"}
-          icon={<Send className="w-4 h-4 text-purple-700" />}
-          iconBg="bg-purple-50"
+          icon={<Send className="w-4 h-4" />}
+          iconBg="bg-purple-50 text-purple-500"
           subtitle="Leads enviados a delivery"
         />
-
-        {/* Row 2 */}
         <KpiCard
           title="Total Clientes"
           value={metrics?.total_clients ?? "—"}
-          icon={<UserCheck className="w-4 h-4 text-green-700" />}
-          iconBg="bg-green-50"
+          icon={<UserCheck className="w-4 h-4" />}
+          iconBg="bg-emerald-50 text-emerald-500"
           subtitle="Clientes activos"
         />
         <KpiCard
           title="Próximas Citas"
           value={metrics?.upcoming_appointments ?? "—"}
-          icon={<Calendar className="w-4 h-4 text-amber-700" />}
-          iconBg="bg-amber-50"
+          icon={<Calendar className="w-4 h-4" />}
+          iconBg="bg-amber-50 text-amber-500"
           subtitle="Citas programadas"
-        />
-        <KpiCard
-          title="Visitas Completadas"
-          value={metrics?.completed_visits ?? "—"}
-          icon={<CheckCircle2 className="w-4 h-4 text-green-700" />}
-          iconBg="bg-green-50"
-          subtitle="En el período seleccionado"
-        />
-
-        {/* Row 3 */}
-        <KpiCard
-          title="2do Intento Hoy"
-          value={metrics?.second_attempt_due ?? "—"}
-          icon={<RotateCcw className="w-4 h-4 text-red-700" />}
-          iconBg="bg-red-50"
-          alert={(metrics?.second_attempt_due ?? 0) > 0}
-          subtitle="Requieren seguimiento hoy"
         />
         <KpiCard
           title="Tasa de Conversión"
@@ -331,147 +296,232 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
               ? `${metrics.conversion_rate.toFixed(1)}%`
               : "—"
           }
-          icon={<TrendingUp className="w-4 h-4 text-blue-700" />}
-          iconBg="bg-blue-50"
+          icon={<TrendingUp className="w-4 h-4" />}
+          iconBg="bg-blue-50 text-blue-500"
           subtitle="Leads → Clientes"
+          sparkline={{ color: "#3b82f6", gradientId: "spk-conv", data: [20, 10, 30, 15, 25, 15, 20] }}
         />
-
-        {/* Lead Quality Card */}
-        <Card className="relative overflow-hidden transition-shadow duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-5">
-            <div className="absolute top-4 right-4 p-2 rounded-lg bg-gray-100">
-              <PieChart className="w-4 h-4 text-gray-600" />
-            </div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1 pr-12">
-              Calidad de Leads
-            </p>
-            <LeadQualityDonut data={quality} />
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Visitas Completadas"
+          value={metrics?.completed_visits ?? "—"}
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          iconBg="bg-emerald-50 text-emerald-500"
+          subtitle="En el período seleccionado"
+        />
+        <KpiCard
+          title="2do Intento Hoy"
+          value={metrics?.second_attempt_due ?? "—"}
+          icon={<RotateCcw className="w-4 h-4" />}
+          iconBg="bg-red-50 text-red-500"
+          alert={(metrics?.second_attempt_due ?? 0) > 0}
+          subtitle="Requieren seguimiento hoy"
+        />
       </div>
 
       {/* Bottom: Chart + Funnel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Activity Chart (2/3 width) */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <CardTitle className="text-base font-semibold">Activity Overview</CardTitle>
-              <div className="flex gap-1">
-                {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setChartGranularity(g)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      chartGranularity === g
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    fontSize: 12,
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                  }}
-                />
-                <Bar dataKey="new_leads" name="New Leads" fill={CHART_COLORS.blue} radius={[3, 3, 0, 0]} />
-                <Bar
-                  dataKey="appointments_created"
-                  name="Appointments"
-                  fill={CHART_COLORS.amber}
-                  radius={[3, 3, 0, 0]}
-                />
-                <Bar
-                  dataKey="visits_completed"
-                  name="Visits"
-                  fill={CHART_COLORS.green}
-                  radius={[3, 3, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-            {/* Legend */}
-            <div className="flex gap-4 justify-center mt-2 flex-wrap">
-              {[
-                { color: CHART_COLORS.blue, label: "New Leads" },
-                { color: CHART_COLORS.amber, label: "Appointments" },
-                { color: CHART_COLORS.green, label: "Visits" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                </div>
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+          <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
+            <h3 className="font-semibold text-lg text-slate-800">Activity Overview</h3>
+            <div className="flex bg-slate-100 rounded-md p-1">
+              {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setChartGranularity(g)}
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                    chartGranularity === g
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {g.charAt(0).toUpperCase() + g.slice(1)}
+                </button>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Pipeline Funnel (1/3 width) */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Pipeline Funnel</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorAppt" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#818cf8" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="label"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  dy={10}
+                />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748b" }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="new_leads"
+                  name="New Leads"
+                  stackId="1"
+                  stroke="#2563eb"
+                  fill="url(#colorNew)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="appointments_created"
+                  name="Appointments"
+                  stackId="1"
+                  stroke="#6366f1"
+                  fill="url(#colorAppt)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="visits_completed"
+                  name="Visits"
+                  stackId="1"
+                  stroke="#94a3b8"
+                  fill="#e2e8f0"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="flex justify-center items-center mt-6 space-x-6 flex-wrap">
+            <div className="flex items-center text-xs text-slate-600 font-medium">
+              <span className="w-3 h-3 rounded-sm bg-blue-600 mr-2"></span> New Leads
+            </div>
+            <div className="flex items-center text-xs text-slate-600 font-medium">
+              <span className="w-3 h-3 rounded-sm bg-indigo-400 mr-2"></span> Appointments
+            </div>
+            <div className="flex items-center text-xs text-slate-600 font-medium">
+              <span className="w-3 h-3 rounded-sm bg-slate-300 mr-2"></span> Visits
+            </div>
+          </div>
+        </div>
+
+        {/* Pipeline Funnel (1/3 width) — SVG with gradients */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 overflow-hidden flex flex-col">
+          <h3 className="font-semibold text-lg text-slate-800 mb-4">Pipeline Funnel</h3>
+          <div className="flex-1 flex items-center justify-center w-full min-h-[350px]">
             {funnelData.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No funnel data</p>
+              <p className="text-xs text-slate-500">No funnel data</p>
             ) : (
-              funnelData.map((step, idx) => {
-                const widthClass = FUNNEL_WIDTHS[idx] ?? "30%";
-                const nextStep = funnelData[idx + 1];
-                const dropPct =
-                  nextStep && step.value > 0
-                    ? (((step.value - nextStep.value) / step.value) * 100).toFixed(0)
-                    : null;
+              <svg
+                viewBox="0 0 400 350"
+                className="w-full h-full max-w-[360px] drop-shadow-md overflow-visible"
+              >
+                <defs>
+                  <clipPath id="funnel-curve">
+                    <path d="M 0,0 L 400,0 C 330,150 290,250 260,350 L 140,350 C 110,250 70,150 0,0 Z" />
+                  </clipPath>
+                  <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#1e3a8a" />
+                    <stop offset="50%" stopColor="#60a5fa" />
+                    <stop offset="100%" stopColor="#1e3a8a" />
+                  </linearGradient>
+                  <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#b45309" />
+                    <stop offset="50%" stopColor="#fde047" />
+                    <stop offset="100%" stopColor="#b45309" />
+                  </linearGradient>
+                  <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#059669" />
+                    <stop offset="50%" stopColor="#6ee7b7" />
+                    <stop offset="100%" stopColor="#059669" />
+                  </linearGradient>
+                  <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#065f46" />
+                    <stop offset="50%" stopColor="#34d399" />
+                    <stop offset="100%" stopColor="#065f46" />
+                  </linearGradient>
+                  <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#022c22" />
+                    <stop offset="50%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#022c22" />
+                  </linearGradient>
+                </defs>
 
-                return (
-                  <div key={idx}>
-                    <div
-                      className="flex items-center justify-between px-3 py-2 rounded text-white text-sm font-medium"
-                      style={{
-                        width: widthClass,
-                        backgroundColor: FUNNEL_COLORS[idx] ?? FUNNEL_COLORS[FUNNEL_COLORS.length - 1],
-                        minWidth: 120,
-                      }}
-                    >
-                      <span className="truncate">{step.label}</span>
-                      <span className="ml-2 font-bold">{step.value}</span>
-                    </div>
-                    {dropPct && (
-                      <p className="text-[10px] text-red-500 pl-1 mt-0.5">
-                        ↓ -{dropPct}% drop-off
-                      </p>
-                    )}
-                  </div>
-                );
-              })
+                <g clipPath="url(#funnel-curve)">
+                  {funnelData.slice(0, 5).map((step, i) => {
+                    const y = i * 70;
+                    const height = i === 4 ? 70 : 68;
+                    const originY = y + height / 2;
+                    const next = funnelData[i + 1];
+                    const dropPct =
+                      next && step.value > 0
+                        ? Math.round(((step.value - next.value) / step.value) * 100)
+                        : null;
+                    return (
+                      <g
+                        key={step.key ?? i}
+                        className="cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 hover:animate-pulse"
+                        style={{ transformOrigin: `200px ${originY}px` }}
+                      >
+                        <rect
+                          x="0"
+                          y={y}
+                          width="400"
+                          height={height}
+                          fill={`url(#${FUNNEL_GRADIENTS[i]})`}
+                        />
+                        <text
+                          x="200"
+                          y={y + 32}
+                          fill="white"
+                          fontSize="14"
+                          fontWeight="500"
+                          textAnchor="middle"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {step.label}
+                        </text>
+                        <text
+                          x="200"
+                          y={y + 54}
+                          fill="white"
+                          fontSize="20"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {step.value}
+                        </text>
+                        {dropPct !== null && dropPct > 0 && (
+                          <text
+                            x="200"
+                            y={y + height - 4}
+                            fill="rgba(255,255,255,0.85)"
+                            fontSize="10"
+                            fontWeight="600"
+                            textAnchor="middle"
+                            style={{ pointerEvents: "none" }}
+                          >
+                            ↓ {dropPct}% drop-off
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              </svg>
             )}
-            {funnelData.length > 1 && (
-              <p className="text-[10px] text-muted-foreground pt-1 border-t border-border mt-2">
-                Drop-off entre etapas del pipeline
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

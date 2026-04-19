@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  AreaChart,
+  Area,
   LineChart,
   Line,
   XAxis,
@@ -8,21 +10,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { apiGet, API_BASE_URL } from "@/lib/api";
 
 interface MonthlyData {
-  month: number; // 1-12
+  month: number;
   month_name?: string;
   new_leads: number;
   total_clients: number;
@@ -69,8 +61,8 @@ export function TrendsTab() {
           apiGet<MonthlyData[]>(`/dashboard/trends?year=${PREV_YEAR}`),
           apiGet<MonthlyData[]>(`/dashboard/trends?year=${CURR_YEAR}`),
         ]);
-        setDataPrev(rPrev);
-        setDataCurr(rCurr);
+        setDataPrev(Array.isArray(rPrev) ? rPrev : []);
+        setDataCurr(Array.isArray(rCurr) ? rCurr : []);
       } catch (err: any) {
         toast.error(err?.message ?? "Error loading trends");
       } finally {
@@ -82,7 +74,7 @@ export function TrendsTab() {
 
   const handleExportCsv = async () => {
     try {
-      const year  = CURR_YEAR;
+      const year = CURR_YEAR;
       const month = new Date().getMonth() + 1;
       const token = sessionStorage.getItem("authToken");
       const res = await fetch(
@@ -91,9 +83,9 @@ export function TrendsTab() {
       );
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
       a.download = `trends_${year}_${month}.csv`;
       a.click();
       URL.revokeObjectURL(url);
@@ -102,12 +94,13 @@ export function TrendsTab() {
     }
   };
 
-  // Summary chips
   const bestCurr = dataCurr.reduce<MonthlyData | null>(
-    (best, d) => (!best || d.new_leads > best.new_leads ? d : best), null
+    (best, d) => (!best || d.new_leads > best.new_leads ? d : best),
+    null
   );
   const bestPrev = dataPrev.reduce<MonthlyData | null>(
-    (best, d) => (!best || d.new_leads > best.new_leads ? d : best), null
+    (best, d) => (!best || d.new_leads > best.new_leads ? d : best),
+    null
   );
   const totalCurr = dataCurr.reduce((s, d) => s + d.new_leads, 0);
   const totalPrevComparable = dataPrev
@@ -122,187 +115,284 @@ export function TrendsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Tendencias Anuales</h2>
-          <p className="text-sm text-muted-foreground">
-            Comparativa de leads por mes — {PREV_YEAR} vs {CURR_YEAR}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setShowPrev((v) => !v)}
-            className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
-              showPrev
-                ? "bg-gray-200 text-gray-800 border-gray-400"
-                : "bg-muted text-muted-foreground border-border"
-            }`}
-          >
-            {PREV_YEAR} {showPrev ? "✓" : ""}
-          </button>
-          <button
-            onClick={() => setShowCurr((v) => !v)}
-            className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
-              showCurr
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-muted text-muted-foreground border-border"
-            }`}
-          >
-            {CURR_YEAR} {showCurr ? "✓" : ""}
-          </button>
-          <button
-            onClick={handleExportCsv}
-            className="px-3 py-1.5 rounded text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
-          >
-            Export CSV
-          </button>
+      {/* Header con Gradient */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-2xl shadow-lg p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="text-white">
+            <h2 className="text-3xl font-bold tracking-tight">Tendencias Anuales</h2>
+            <p className="text-blue-100 text-sm mt-2">
+              Análisis comparativo de leads por mes — {PREV_YEAR} vs {CURR_YEAR}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setShowPrev((v) => !v)}
+              className={`px-4 py-2.5 rounded-lg text-xs font-semibold border-2 transition-all duration-200 transform hover:scale-105 ${
+                showPrev
+                  ? "bg-slate-100 text-slate-900 border-white shadow-lg"
+                  : "bg-white/20 text-white border-white/40 hover:bg-white/30"
+              }`}
+            >
+              {PREV_YEAR} {showPrev ? "✓" : ""}
+            </button>
+            <button
+              onClick={() => setShowCurr((v) => !v)}
+              className={`px-4 py-2.5 rounded-lg text-xs font-semibold border-2 transition-all duration-200 transform hover:scale-105 ${
+                showCurr
+                  ? "bg-white text-blue-600 border-white shadow-lg"
+                  : "bg-white/20 text-white border-white/40 hover:bg-white/30"
+              }`}
+            >
+              {CURR_YEAR} {showCurr ? "✓" : ""}
+            </button>
+            <button
+              onClick={handleExportCsv}
+              className="px-4 py-2.5 rounded-lg text-xs font-semibold bg-white text-blue-600 hover:bg-slate-100 transition-all duration-200 transform hover:scale-105 shadow-lg border-2 border-white"
+            >
+              ⬇ Export CSV
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Summary chips */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">
-              Mejor mes {CURR_YEAR}
-            </p>
-            <p className="text-xl font-bold">
+      {/* Summary chips mejorados */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-32 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-100 animate-pulse shadow-md" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-md border border-orange-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] uppercase tracking-widest text-orange-600 font-bold">
+                🏆 Mejor mes {CURR_YEAR}
+              </p>
+              <div className="text-2xl">📈</div>
+            </div>
+            <p className="text-3xl font-bold text-orange-900">
               {bestCurr ? MONTH_NAMES[bestCurr.month - 1] : "—"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {bestCurr ? `${bestCurr.new_leads} leads` : "Sin datos aún"}
+            <p className="text-sm text-orange-700 mt-2 font-medium">
+              {bestCurr ? `${bestCurr.new_leads} leads` : "Sin datos"}
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">
-              Mejor mes {PREV_YEAR}
-            </p>
-            <p className="text-xl font-bold">
+          </div>
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl shadow-md border border-blue-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] uppercase tracking-widest text-blue-600 font-bold">
+                🏆 Mejor mes {PREV_YEAR}
+              </p>
+              <div className="text-2xl">📊</div>
+            </div>
+            <p className="text-3xl font-bold text-blue-900">
               {bestPrev ? MONTH_NAMES[bestPrev.month - 1] : "—"}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-blue-700 mt-2 font-medium">
               {bestPrev ? `${bestPrev.new_leads} leads` : "Sin datos"}
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">
-              Crecimiento YoY
-            </p>
+          </div>
+          <div className={`bg-gradient-to-br rounded-2xl shadow-md border p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
+            yoyGrowth == null
+              ? "from-slate-50 to-slate-100 border-slate-200"
+              : Number(yoyGrowth) >= 0
+              ? "from-emerald-50 to-green-50 border-green-200"
+              : "from-rose-50 to-red-50 border-red-200"
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <p className={`text-[11px] uppercase tracking-widest font-bold ${
+                yoyGrowth == null
+                  ? "text-slate-600"
+                  : Number(yoyGrowth) >= 0
+                  ? "text-green-600"
+                  : "text-red-600"
+              }`}>
+                📉 Crecimiento YoY
+              </p>
+              <div className="text-2xl">{yoyGrowth == null ? "📊" : Number(yoyGrowth) >= 0 ? "📈" : "📉"}</div>
+            </div>
             <p
-              className={`text-xl font-bold ${
-                yoyGrowth == null ? "" : Number(yoyGrowth) >= 0 ? "text-green-600" : "text-red-500"
+              className={`text-3xl font-bold ${
+                yoyGrowth == null ? "text-slate-900" : Number(yoyGrowth) >= 0 ? "text-green-700" : "text-red-700"
               }`}
             >
               {yoyGrowth != null ? `${Number(yoyGrowth) >= 0 ? "+" : ""}${yoyGrowth}%` : "—"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {CURR_YEAR} vs {PREV_YEAR} (mismos meses)
+            <p className={`text-sm mt-2 font-medium ${
+              yoyGrowth == null
+                ? "text-slate-600"
+                : Number(yoyGrowth) >= 0
+                ? "text-green-700"
+                : "text-red-700"
+            }`}>
+              {CURR_YEAR} vs {PREV_YEAR}
             </p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      )}
 
-      {/* Line Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Leads Mensuales</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">
-              Cargando...
+      {/* Chart Mejorado */}
+      <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="font-bold text-2xl text-slate-900">Comparativa de Leads</h3>
+            <p className="text-slate-500 text-sm mt-1">Evolución mensual de leads capturados</p>
+          </div>
+          <div className="flex gap-4">
+            {showPrev && (
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-1 bg-gray-400 rounded-full opacity-60" style={{ backgroundImage: "repeating-linear-gradient(90deg, #9ca3af 0px, #9ca3af 5px, transparent 5px, transparent 10px)" }}></div>
+                <span className="text-xs font-medium text-slate-600">{PREV_YEAR}</span>
+              </div>
+            )}
+            {showCurr && (
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-1 bg-blue-500 rounded-full"></div>
+                <span className="text-xs font-medium text-blue-600">{CURR_YEAR}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        {loading ? (
+          <div className="h-80 flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 rounded-xl">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-3"></div>
+              <p className="text-slate-500 text-sm">Cargando datos...</p>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={chartRows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--border)" }}
+          </div>
+        ) : (
+          <div className="h-[350px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartRows} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradientPrev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#9ca3af" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="#9ca3af" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gradientCurr" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  tickLine={false}
+                  axisLine={false}
                 />
-                <Legend iconSize={12} wrapperStyle={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 12,
+                    border: "2px solid #e2e8f0",
+                    boxShadow: "0 8px 16px -2px rgb(0 0 0 / 0.15)",
+                    backgroundColor: "#ffffff",
+                  }}
+                  cursor={{ stroke: "#cbd5e1", strokeWidth: 2 }}
+                />
                 {showPrev && (
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey={`leads${PREV_YEAR}`}
                     name={String(PREV_YEAR)}
                     stroke="#9ca3af"
                     strokeDasharray="5 3"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    fill="url(#gradientPrev)"
                     dot={false}
                     connectNulls={false}
                   />
                 )}
                 {showCurr && (
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey={`leads${CURR_YEAR}`}
                     name={String(CURR_YEAR)}
-                    stroke="hsl(214, 71%, 28%)"
-                    strokeWidth={2.5}
-                    dot={{ r: 3 }}
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    fill="url(#gradientCurr)"
+                    dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#ffffff" }}
+                    activeDot={{ r: 6 }}
                     connectNulls={false}
                   />
                 )}
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
 
-      {/* Monthly Breakdown Table — año actual */}
+      {/* Table Mejorada */}
       {dataCurr.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Desglose Mensual {CURR_YEAR}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mes</TableHead>
-                  <TableHead className="text-right">New Leads</TableHead>
-                  <TableHead className="text-right">Clientes</TableHead>
-                  <TableHead className="text-right">Visitas</TableHead>
-                  <TableHead className="text-right">Conv%</TableHead>
-                  <TableHead className="text-right">vs {PREV_YEAR}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dataCurr.map((row) => {
-                  const dP  = dataPrev.find((d) => d.month === row.month);
-                  const vs  = dP != null ? row.new_leads - dP.new_leads : null;
-                  return (
-                    <TableRow key={row.month}>
-                      <TableCell className="font-medium">
-                        {MONTH_NAMES[row.month - 1]}
-                      </TableCell>
-                      <TableCell className="text-right">{row.new_leads}</TableCell>
-                      <TableCell className="text-right">{row.total_clients}</TableCell>
-                      <TableCell className="text-right">{row.visits_completed}</TableCell>
-                      <TableCell className="text-right">
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8 overflow-x-auto">
+          <div className="mb-8">
+            <h3 className="font-bold text-2xl text-slate-900">Desglose Mensual {CURR_YEAR}</h3>
+            <p className="text-slate-500 text-sm mt-1">Análisis detallado de métricas por mes</p>
+          </div>
+          <table className="w-full text-sm text-left whitespace-nowrap">
+            <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b-2 border-blue-200 text-slate-700 font-bold">
+              <tr>
+                <th className="px-6 py-4 rounded-tl-lg">📅 Mes</th>
+                <th className="px-6 py-4 text-right">📊 New Leads</th>
+                <th className="px-6 py-4 text-right">👥 Clientes</th>
+                <th className="px-6 py-4 text-right">📍 Visitas</th>
+                <th className="px-6 py-4 text-right">📈 Conv%</th>
+                <th className="px-6 py-4 text-right rounded-tr-lg">vs {PREV_YEAR}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {dataCurr.map((row, idx) => {
+                const dP = dataPrev.find((d) => d.month === row.month);
+                const vs = dP != null ? row.new_leads - dP.new_leads : null;
+                const isHighlight = idx % 2 === 0;
+                return (
+                  <tr
+                    key={row.month}
+                    className={`transition-all duration-200 ${
+                      isHighlight
+                        ? "bg-slate-50/50 hover:bg-blue-50/80"
+                        : "bg-white hover:bg-blue-50/50"
+                    }`}
+                  >
+                    <td className="px-6 py-4 font-semibold text-slate-900">{MONTH_NAMES[row.month - 1]}</td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-bold">
+                        {row.new_leads}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="inline-block bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg font-bold">
+                        {row.total_clients}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-lg font-bold">
+                        {row.visits_completed}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="inline-block bg-orange-100 text-orange-700 px-3 py-1 rounded-lg font-bold">
                         {row.conversion_rate?.toFixed(1)}%
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-medium ${
-                          vs == null ? "" : vs >= 0 ? "text-green-600" : "text-red-500"
-                        }`}
-                      >
-                        {vs == null ? "—" : `${vs >= 0 ? "+" : ""}${vs}`}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      </span>
+                    </td>
+                    <td
+                      className={`px-6 py-4 text-right font-bold text-sm ${
+                        vs == null ? "text-slate-400" : vs >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {vs == null
+                        ? "—"
+                        : `${vs >= 0 ? "📈 +" : "📉 "}${vs}`
+                      }
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

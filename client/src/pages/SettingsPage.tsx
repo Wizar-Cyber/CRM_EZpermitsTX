@@ -334,27 +334,40 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold flex items-center gap-3">
-        <Settings className="w-8 h-8 text-primary" />
-        Settings
-      </h1>
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-500 rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Settings className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">System</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+            <p className="text-slate-300 text-sm mt-0.5">Manage your account, appearance, and integrations</p>
+          </div>
+          <div className="bg-white/10 rounded-xl px-4 py-2 border border-white/20">
+            <p className="text-xs opacity-70">{user?.fullname || "User"}</p>
+            <p className="text-[10px] opacity-50 capitalize">{(user as any)?.role_name || "Member"}</p>
+          </div>
+        </div>
+      </div>
 
       <Card className="rounded-2xl shadow-sm p-6">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className={`mb-6 ${tabsCols} grid`}>
-            <TabsTrigger value="profile">
-              <User className="w-4 h-4 mr-2" /> Profile
+          <TabsList className={`mb-6 ${tabsCols} grid bg-slate-100 dark:bg-slate-800 p-1 rounded-xl`}>
+            <TabsTrigger value="profile" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <User className="w-3.5 h-3.5 mr-1.5" /> Profile
             </TabsTrigger>
-            <TabsTrigger value="security">
-              <Lock className="w-4 h-4 mr-2" /> Security
+            <TabsTrigger value="security" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Lock className="w-3.5 h-3.5 mr-1.5" /> Security
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="admin">
-                <ShieldCheck className="w-4 h-4 mr-2" /> Admin
+              <TabsTrigger value="admin" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> Admin
               </TabsTrigger>
             )}
-            <TabsTrigger value="integrations">
-              <Link2 className="w-4 h-4 mr-2" /> Integrations
+            <TabsTrigger value="integrations" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Link2 className="w-3.5 h-3.5 mr-1.5" /> Integrations
             </TabsTrigger>
           </TabsList>
 

@@ -204,16 +204,25 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <UserCircle2 className="w-8 h-8 text-primary" />
-          Clients
-        </h1>
-        <Button onClick={() => setShowModal(true)}>
-          <PlusCircle className="w-4 h-4 mr-1" /> Add Client
-        </Button>
-      </header>
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <UserCircle2 className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">CRM</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
+            <p className="text-emerald-100 text-sm mt-0.5">Manage and track your client pipeline</p>
+          </div>
+          <Button
+            onClick={() => setShowModal(true)}
+            className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold border-0 shadow-sm cursor-pointer"
+          >
+            <PlusCircle className="w-4 h-4 mr-1" /> Add Client
+          </Button>
+        </div>
+      </div>
 
       {/* Search */}
       <div className="flex items-center gap-2 mb-4">
