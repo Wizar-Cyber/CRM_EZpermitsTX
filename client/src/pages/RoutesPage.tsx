@@ -4,6 +4,7 @@ import { apiGet, apiDelete } from "@/lib/api";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Route as RouteIcon, MapPin } from "lucide-react";
 
 export type Route = {
   id: number;
@@ -71,13 +72,33 @@ export default function RoutesPage() {
 
   // 5️⃣ Render
   return (
-    <RoutesTable
-      routes={routes}
-      onEdit={handleEdit}
-      onDeleteRequest={(id) => setDeleteId(id)}
-      deleteId={deleteId}
-      onDeleteCancel={() => setDeleteId(null)}
-      onDeleteConfirm={handleDeleteConfirm}
-    />
+    <div className="space-y-6">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-green-600 rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <RouteIcon className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Logistics</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Routes</h1>
+            <p className="text-teal-100 text-sm mt-0.5">Manage delivery and inspection routes</p>
+          </div>
+          <div className="bg-white/15 rounded-xl px-4 py-2.5 text-center border border-white/20">
+            <p className="text-xl font-bold">{routes.length}</p>
+            <p className="text-xs opacity-75 mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" /> Routes</p>
+          </div>
+        </div>
+      </div>
+
+      <RoutesTable
+        routes={routes}
+        onEdit={handleEdit}
+        onDeleteRequest={(id) => setDeleteId(id)}
+        deleteId={deleteId}
+        onDeleteCancel={() => setDeleteId(null)}
+        onDeleteConfirm={handleDeleteConfirm}
+      />
+    </div>
   );
 }

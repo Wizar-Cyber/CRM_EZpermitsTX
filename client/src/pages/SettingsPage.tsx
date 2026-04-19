@@ -158,8 +158,8 @@ export default function SettingsPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" /> Administración de usuarios
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" /> User Administration
           </h2>
           <Button variant="outline" size="sm" onClick={loadUsers}>
             <RefreshCw className="w-4 h-4 mr-2" /> Refrescar
@@ -173,12 +173,12 @@ export default function SettingsPage() {
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr className="text-left">
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Email</th>
-                  <th className="p-3">Rol</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3">Creado</th>
-                  <th className="p-3 text-right">Acciones</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Name</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Email</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Role</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Status</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Created</th>
+                  <th className="p-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                       ? "Aprobado"
                       : "Pendiente";
                   return (
-                    <tr key={u.id} className="border-t">
+                    <tr key={u.id} className="border-t hover:bg-muted/40 transition-colors">
                       <td className="p-3">{u.fullname}</td>
                       <td className="p-3">{u.email}</td>
                       <td className="p-3 capitalize">{roleLabel}</td>
@@ -270,30 +270,42 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold flex items-center gap-3">
-        <Settings className="w-8 h-8 text-primary" />
-        Settings
-      </h1>
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-500 rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Settings className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">System</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+            <p className="text-slate-300 text-sm mt-0.5">Manage your account, appearance, and integrations</p>
+          </div>
+          <div className="bg-white/10 rounded-xl px-4 py-2 border border-white/20">
+            <p className="text-xs opacity-70">{user?.fullname || "User"}</p>
+            <p className="text-[10px] opacity-50 capitalize">{(user as any)?.role_name || "Member"}</p>
+          </div>
+        </div>
+      </div>
 
       <Card className="rounded-2xl shadow-sm p-6">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className={`mb-6 ${tabsCols} grid`}>
-            <TabsTrigger value="profile">
-              <User className="w-4 h-4 mr-2" /> Profile
+          <TabsList className={`mb-6 ${tabsCols} grid bg-slate-100 dark:bg-slate-800 p-1 rounded-xl`}>
+            <TabsTrigger value="profile" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <User className="w-3.5 h-3.5 mr-1.5" /> Profile
             </TabsTrigger>
-            <TabsTrigger value="security">
-              <Lock className="w-4 h-4 mr-2" /> Security
+            <TabsTrigger value="security" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Lock className="w-3.5 h-3.5 mr-1.5" /> Security
             </TabsTrigger>
-            {/* 🔕 Eliminado Notifications */}
-            <TabsTrigger value="appearance">
-              <Palette className="w-4 h-4 mr-2" /> Appearance
+            <TabsTrigger value="appearance" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Palette className="w-3.5 h-3.5 mr-1.5" /> Appearance
             </TabsTrigger>
-            <TabsTrigger value="integrations">
-              <Link2 className="w-4 h-4 mr-2" /> Integrations
+            <TabsTrigger value="integrations" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Link2 className="w-3.5 h-3.5 mr-1.5" /> Integrations
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="admin">
-                <ShieldCheck className="w-4 h-4 mr-2" /> Admin
+              <TabsTrigger value="admin" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> Admin
               </TabsTrigger>
             )}
           </TabsList>
@@ -301,7 +313,7 @@ export default function SettingsPage() {
           {/* 👤 Profile */}
           <TabsContent value="profile">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold mb-4">User Profile</h2>
+              <h2 className="text-lg font-semibold mb-4">User Profile</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label htmlFor="fullname">Full Name</Label>
@@ -348,7 +360,7 @@ export default function SettingsPage() {
           {/* 🔒 Security */}
           <TabsContent value="security">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold mb-4">Security Settings</h2>
+              <h2 className="text-lg font-semibold mb-4">Security Settings</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label htmlFor="currentPassword">Current Password</Label>
@@ -372,7 +384,7 @@ export default function SettingsPage() {
           {/* 🎨 Appearance */}
           <TabsContent value="appearance">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold mb-4">Theme</h2>
+              <h2 className="text-lg font-semibold mb-4">Theme</h2>
 
               <div className="flex items-center justify-between">
                 <Label>Current Theme</Label>
@@ -408,7 +420,7 @@ export default function SettingsPage() {
           {/* 🔗 Integrations */}
           <TabsContent value="integrations">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold mb-4">CRM Integrations</h2>
+              <h2 className="text-lg font-semibold mb-4">CRM Integrations</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Manage connected services and third-party tools.
               </p>

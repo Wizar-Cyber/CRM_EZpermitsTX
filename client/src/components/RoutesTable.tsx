@@ -32,82 +32,101 @@ export function RoutesTable({
 }: RoutesTableProps) {
   return (
     <div className="w-full">
-      <h2 className="text-2xl font-semibold mb-4">Saved Routes</h2>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">Saved Routes</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{routes.length} routes configured</p>
+        </div>
+      </div>
 
-      <Card className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full" data-testid="table-routes">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="p-4 text-left font-semibold text-sm">Route Name</th>
-              <th className="p-4 text-left font-semibold text-sm">Created By</th>
-              <th className="p-4 text-left font-semibold text-sm">Created</th>
-              <th className="p-4 text-left font-semibold text-sm">Scheduled</th>
-              {/* ✅ Nueva columna solo si alguna ruta tiene actualización */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm" data-testid="table-routes">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gradient-to-r from-slate-800 to-slate-700">
+              <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Route Name</th>
+              <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Created By</th>
+              <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Created</th>
+              <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Scheduled</th>
               {routes.some(r => r.updated_at) && (
-                <th className="p-4 text-left font-semibold text-sm">Last Update</th>
+                <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Last Update</th>
               )}
-              <th className="p-4 text-left font-semibold text-sm">Points</th>
-              <th className="p-4 text-left font-semibold text-sm">Actions</th>
+              <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Points</th>
+              <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {routes.map((route) => (
+            {routes.map((route, idx) => (
               <tr
                 key={route.id}
-                className="border-t border-border hover:bg-muted/50 transition-colors"
+                className={`border-t border-slate-100 dark:border-slate-800 transition-colors ${
+                  idx % 2 === 0
+                    ? "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    : "bg-slate-50/40 dark:bg-slate-800/20 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
                 data-testid={`row-route-${route.id}`}
               >
-                <td className="p-4 font-medium">{route.name}</td>
-                <td className="p-4 text-muted-foreground">
+                <td className="p-4 font-semibold text-sm text-slate-800 dark:text-slate-200">{route.name}</td>
+                <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
                   {route.created_by}
-                  {/* ✅ Muestra quién actualizó si existe */}
                   {route.updated_by && (
-                    <span className="block text-xs text-muted-foreground/70">
+                    <span className="block text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                       Updated by {route.updated_by}
                     </span>
                   )}
                 </td>
-                <td className="p-4 text-muted-foreground">
+                <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
                   {new Date(route.created_at).toLocaleDateString()}
                 </td>
-                <td className="p-4 text-muted-foreground">
+                <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
                   {new Date(route.scheduled_on).toLocaleDateString()}
                 </td>
-                {/* ✅ Nueva celda: fecha de última actualización */}
                 {routes.some(r => r.updated_at) && (
-                  <td className="p-4 text-muted-foreground">
+                  <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
                     {route.updated_at
                       ? new Date(route.updated_at).toLocaleDateString()
                       : "-"}
                   </td>
                 )}
-                <td className="p-4">{route.points_count ?? route.points?.length ?? 0}</td>
                 <td className="p-4">
-                  <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                    {route.points_count ?? route.points?.length ?? 0} pts
+                  </span>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-1">
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="h-8 w-8 hover:bg-blue-50 dark:hover:bg-blue-950/30 cursor-pointer"
                       onClick={() => onEdit(route.id)}
                       data-testid={`button-edit-${route.id}`}
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-3.5 h-3.5 text-blue-500" />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="h-8 w-8 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
                       onClick={() => onDeleteRequest(route.id)}
                       data-testid={`button-delete-${route.id}`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                     </Button>
                   </div>
                 </td>
               </tr>
             ))}
+            {routes.length === 0 && (
+              <tr>
+                <td colSpan={7} className="p-12 text-center text-slate-400 text-sm">
+                  No routes saved yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-      </Card>
+      </div>
 
       {/* Diálogo controlado */}
       <AlertDialog open={deleteId !== null} onOpenChange={onDeleteCancel}>

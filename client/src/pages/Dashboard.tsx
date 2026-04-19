@@ -1,84 +1,114 @@
-import { useEffect, useState } from "react";
-import { DashboardCard } from "@/components/DashboardCard";
-import { DashboardChart } from "@/components/DashboardChart";
-import { Users, TrendingUp, MapPin, Calendar, CheckCircle2, CalendarRange } from "lucide-react";
-import { apiGet } from "@/lib/api";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OverviewTab } from "@/components/dashboard/OverviewTab";
+import { TrendsTab } from "@/components/dashboard/TrendsTab";
+import { GeographicTab } from "@/components/dashboard/GeographicTab";
+import { GreenLeadsTab } from "@/components/dashboard/GreenLeadsTab";
+import { MonthlyTab } from "@/components/dashboard/MonthlyTab";
+import { LeadQualityDistribution } from "@/components/analytics/LeadQualityDistribution";
 
-interface Metrics {
-  total_leads: number;
-  new_leads: number;
-  leads_in_route: number;
-  upcoming_appointments: number;
-  completed_visits: number;
+type Preset = 7 | 30 | 90;
+
+function startOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function endOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
+}
+
+function daysAgo(n: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return startOfDay(d);
 }
 
 export default function Dashboard() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [start, setStart] = useState(() => new Date(new Date().setDate(new Date().getDate() - 30)));
-  const [end, setEnd] = useState(() => new Date());
-  const [loading, setLoading] = useState(false);
+  const [activePreset, setActivePreset] = useState<Preset>(30);
+  const [start, setStart] = useState<Date>(() => daysAgo(30));
+  const [end, setEnd] = useState<Date>(() => endOfDay(new Date()));
 
-  const fetchMetrics = async () => {
-    try {
-      setLoading(true);
-      // ✅ Sin comillas en los query params
-      const startStr = format(start, "yyyy-MM-dd");
-      const endStr = format(end, "yyyy-MM-dd");
-
-      // Si apiGet ya antepone /api, mantén /dashboard/...
-      const data = await apiGet<Metrics>(
-        `/dashboard/metrics?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`
-      );
-      setMetrics(data);
-    } catch (err: any) {
-      console.error("Error loading metrics:", err);
-      toast.error("Error loading metrics");
-    } finally {
-      setLoading(false);
-    }
+  const handlePreset = (days: Preset) => {
+    setActivePreset(days);
+    setStart(daysAgo(days));
+    setEnd(endOfDay(new Date()));
   };
 
-  useEffect(() => {
-    fetchMetrics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start, end]);
-
-  const handlePreset = (days: number) => {
-    setStart(new Date(new Date().setDate(new Date().getDate() - days)));
-    setEnd(new Date());
-  };
-
-  if (!metrics) return <p className="text-gray-500">Loading dashboard...</p>;
+  const presets: Preset[] = [7, 30, 90];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="flex gap-2 items-center">
-          <CalendarRange className="w-5 h-5 text-gray-600" />
-          <Button variant="outline" onClick={() => handlePreset(7)}>Last 7 days</Button>
-          <Button variant="outline" onClick={() => handlePreset(30)}>Last 30 days</Button>
-          <Button variant="outline" onClick={() => handlePreset(90)}>Last 90 days</Button>
+    <div className="min-h-screen bg-[#F0F2F5] -m-4 md:-m-6 font-sans text-slate-800">
+      {/* Dark header */}
+      <header className="bg-[#0f172a] text-white px-6 py-4 flex justify-between items-center flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Executive CRM Dashboard</h1>
+          <p className="text-sm text-slate-400 mt-1">EZpermitsTX — Houston, TX</p>
         </div>
-      </div>
+        <div className="flex bg-slate-800 rounded-md overflow-hidden text-sm">
+          {presets.map((p) => (
+            <button
+              key={p}
+              onClick={() => handlePreset(p)}
+              className={`px-4 py-1.5 transition-colors ${
+                activePreset === p
+                  ? "bg-white text-slate-800 font-medium"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              {p}d
+            </button>
+          ))}
+        </div>
+      </header>
 
-      {loading && <p className="text-sm text-gray-500">Updating metrics...</p>}
+      {/* Tabs on dark bar */}
+      <Tabs defaultValue="overview" className="w-full">
+        <div className="bg-[#0f172a] px-6 py-3 border-t border-slate-700">
+          <TabsList className="bg-transparent p-0 h-auto gap-1">
+            {[
+              { value: "overview", label: "Overview" },
+              { value: "trends", label: "Tendencias" },
+              { value: "geographic", label: "Geográfico" },
+              { value: "green-leads", label: "Green Leads → Route" },
+              { value: "lead-quality", label: "Lead Quality" },
+              { value: "monthly", label: "Reporte Mensual" },
+            ].map((t) => (
+              <TabsTrigger
+                key={t.value}
+                value={t.value}
+                className="px-4 py-1.5 text-sm rounded-md transition-colors text-slate-300 hover:text-white hover:bg-slate-800 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-medium data-[state=active]:shadow-sm"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <DashboardCard title="Total Leads" value={metrics.total_leads} icon={Users} trend="+12% vs prev. period" />
-        <DashboardCard title="New Leads" value={metrics.new_leads} icon={TrendingUp} trend="In selected range" iconBgColor="bg-emerald-500/10" />
-        <DashboardCard title="Leads in Route" value={metrics.leads_in_route} icon={MapPin} trend="Currently active" iconBgColor="bg-blue-500/10" />
-        <DashboardCard title="Upcoming Appointments" value={metrics.upcoming_appointments} icon={Calendar} trend="Next events" iconBgColor="bg-amber-500/10" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <DashboardCard title="Completed Visits" value={metrics.completed_visits} icon={CheckCircle2} trend="Total visits completed" iconBgColor="bg-green-500/10" />
-      </div>
-
-      <DashboardChart start={start} end={end} />
+        <div className="p-6 max-w-[1600px] mx-auto">
+          <TabsContent value="overview" className="mt-0">
+            <OverviewTab start={start} end={end} />
+          </TabsContent>
+          <TabsContent value="trends" className="mt-0">
+            <TrendsTab />
+          </TabsContent>
+          <TabsContent value="geographic" className="mt-0">
+            <GeographicTab start={start} end={end} />
+          </TabsContent>
+          <TabsContent value="green-leads" className="mt-0">
+            <GreenLeadsTab />
+          </TabsContent>
+          <TabsContent value="lead-quality" className="mt-0">
+            <LeadQualityDistribution />
+          </TabsContent>
+          <TabsContent value="monthly" className="mt-0">
+            <MonthlyTab />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }

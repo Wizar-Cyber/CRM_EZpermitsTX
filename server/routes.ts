@@ -4,8 +4,36 @@ import { storage } from "./storage";
 import { insertLeadSchema, insertRouteSchema, insertAppointmentSchema } from "@shared/schema";
 import { ZodError } from "zod";
 
+// JS routes from legacy server
+// @ts-ignore
+import authRoutes from "./routes/auth.js";
+// @ts-ignore
+import leadsRoutes from "./routes/leads.js";
+// @ts-ignore
+import routesRoutes from "./routes/routes.js";
+// @ts-ignore
+import settingsRouter from "./routes/settings.js";
+// @ts-ignore
+import clientesRouter from "./routes/clientes.js";
+// @ts-ignore
+import appointmentsRouter from "./routes/appointments.js";
+// @ts-ignore
+import dashboardRoutes from "./routes/dashboard.js";
+// @ts-ignore
+import adminRouter from "./routes/admin.js";
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Leads routes
+  // JS legacy routes
+  app.use("/api/auth", authRoutes);
+  app.use("/api/leads", leadsRoutes);
+  app.use("/api/routes", routesRoutes);
+  app.use("/api/settings", settingsRouter);
+  app.use("/api/clientes", clientesRouter);
+  app.use("/api/appointments", appointmentsRouter);
+  app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/admin", adminRouter);
+
+  // TypeScript storage-based routes
   app.get("/api/leads", async (_req, res) => {
     try {
       const leads = await storage.getAllLeads();

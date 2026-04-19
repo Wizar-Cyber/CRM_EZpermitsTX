@@ -5,9 +5,9 @@ import {
   Calendar,
   Settings,
   LogOut,
-  Users, // ✨ 1. Ícono para Clientes
-  KanbanSquare, // ✨ 2. Ícono para Leads Clasificados
-  Shield, // ✨ 3. Ícono para el panel de Admin
+  Users, // ✨ 1. Icon for Clients
+  KanbanSquare, // ✨ 2. Icon for Classified Leads
+  Shield, // ✨ 3. Icon for Admin panel
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -33,7 +33,14 @@ const menuItems = [
     url: "/leads",
     icon: Home,
   },
-  // ✨ 4. Nuevo botón para "Leads Clasificados"
+  {
+    title: "Delivery",
+    url: "/leads-delivery",
+    icon: RouteIcon,
+  },
+  // ✨ 4. New button for "Classified Leads"
+ 
+  // ✨ 5. New button for "Clients"
   {
     title: "Clients",
     url: "/clients",
@@ -63,16 +70,16 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  // ✨ 6. Obtenemos el objeto 'user' además de 'logout'
+  // ✨ 6. Get 'user' object in addition to 'logout'
   const { user, logout } = useAuth();
 
-  // ✨ 7. Verificamos si el usuario es administrador (ajusta 'admin' si tu rol se llama diferente)
+  // ✨ 7. Check if the user is administrator (adjust 'admin' if your role name differs)
   const isAdmin = user && user.role === 'admin';
 
   return (
     <Sidebar>
       <SidebarContent className="flex flex-col">
-        {/* Grupo de menú principal (sin cambios) */}
+        {/* Main menu group (unchanged) */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-bold text-primary mb-2">
             EZpermitsTX
@@ -100,7 +107,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Grupo para el botón de logout (lo empujamos al fondo) */}
+        {/* Logout button group (pushed to bottom) */}
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>

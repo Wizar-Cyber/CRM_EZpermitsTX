@@ -1,5 +1,28 @@
 // src/lib/api.ts
-export const API_BASE_URL = "http://localhost:4000/api";
+export const API_BASE_URL = import.meta.env.VITE_API_URL;
+const LAST_ACTIVITY_KEY = "authLastActivity";
+const TOKEN_KEY = "authToken";
+
+// Token and activity are stored in sessionStorage (cleared when browser closes).
+// Always try both storages during the migration period.
+function getToken(): string | null {
+  try { return window.sessionStorage.getItem(TOKEN_KEY); } catch {}
+  return null;
+}
+
+function clearAuth() {
+  try { window.sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  try { window.sessionStorage.removeItem(LAST_ACTIVITY_KEY); } catch {}
+  // Also clear legacy localStorage values
+  try { window.localStorage.removeItem(TOKEN_KEY); } catch {}
+  try { window.localStorage.removeItem(LAST_ACTIVITY_KEY); } catch {}
+}
+
+function stampActivity() {
+  try {
+    window.sessionStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  } catch {}
+}
 
 /**
  * Helper genérico para hacer peticiones al backend Express
@@ -15,9 +38,7 @@ async function parseError(res: Response) {
 }
 
 function handle401() {
-  try {
-    localStorage.removeItem("authToken");
-  } catch {}
+  clearAuth();
   try {
     window.dispatchEvent(new CustomEvent("auth:logout"));
   } catch {}
@@ -26,19 +47,25 @@ function handle401() {
   }
 }
 
-export async function apiRequest<T>(
+export async function apiRequest<T = any>(
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH", // 👈 agregado PATCH
   path: string,
   body?: any,
   extra?: RequestInit
 ): Promise<T> {
-  const token = localStorage.getItem("authToken");
+  const token = getToken();
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(extra?.headers || {}),
   };
+
+  if (extra?.headers) {
+    const extraHeaders = new Headers(extra.headers);
+    extraHeaders.forEach((value, key) => {
+      headers[key] = value;
+    });
+  }
 
   let finalBody: BodyInit | undefined = undefined;
 
@@ -62,29 +89,30 @@ export async function apiRequest<T>(
     throw new Error(msg || `HTTP ${res.status}`);
   }
 
+  stampActivity();
+
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) {
     return res.json() as Promise<T>;
   }
-  // @ts-expect-error: permitimos texto si no hay JSON
-  return (res.text() as unknown) as T;
+  return (await res.text()) as T;
 }
 
 // Métodos auxiliares
-export const apiGet = <T>(path: string, opts: RequestInit = {}) =>
+export const apiGet = <T = any>(path: string, opts: RequestInit = {}) =>
   apiRequest<T>("GET", path, undefined, opts);
 
-export const apiPost = <T>(path: string, body?: any, opts: RequestInit = {}) =>
+export const apiPost = <T = any>(path: string, body?: any, opts: RequestInit = {}) =>
   apiRequest<T>("POST", path, body, opts);
 
-export const apiPut = <T>(path: string, body?: any, opts: RequestInit = {}) =>
+export const apiPut = <T = any>(path: string, body?: any, opts: RequestInit = {}) =>
   apiRequest<T>("PUT", path, body, opts);
 
-export const apiDelete = <T>(path: string, opts: RequestInit = {}) =>
+export const apiDelete = <T = any>(path: string, opts: RequestInit = {}) =>
   apiRequest<T>("DELETE", path, undefined, opts);
 
 // ✅ NUEVO: soporte PATCH
-export const apiPatch = <T>(path: string, body?: any, opts: RequestInit = {}) =>
+export const apiPatch = <T = any>(path: string, body?: any, opts: RequestInit = {}) =>
   apiRequest<T>("PATCH", path, body, opts);
 
 export function toFormData(obj: Record<string, any>): FormData {

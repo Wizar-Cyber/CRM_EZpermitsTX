@@ -81,8 +81,6 @@ export default function ClientsPage() {
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editedNoteText, setEditedNoteText] = useState("");
 
-  const columns = ["pending", "visited", "purchased", "resolved"];
-
   const fetchClients = async () => {
     try {
       const data = await apiGet<Client[]>("/clientes");
@@ -186,81 +184,158 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <UserCircle2 className="w-8 h-8 text-primary" />
-          Clients
-        </h1>
-        <Button onClick={() => setShowModal(true)}>
-          <PlusCircle className="w-4 h-4 mr-1" /> Add Client
-        </Button>
-      </header>
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <UserCircle2 className="w-5 h-5 opacity-80" />
+              <span className="text-sm font-medium opacity-80 uppercase tracking-widest">Client Management</span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Clients Pipeline</h1>
+            <p className="text-emerald-100 mt-1 text-sm">Drag & drop clients between stages to update their status</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 text-center border border-white/20">
+              <p className="text-xl font-bold">{filtered.length}</p>
+              <p className="text-xs opacity-75 mt-0.5">Total</p>
+            </div>
+            <Button
+              onClick={() => setShowModal(true)}
+              className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold shadow-sm border-0 cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4 mr-1.5" /> Add Client
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* Search */}
-      <div className="flex items-center gap-2 mb-4">
-        <Search className="w-4 h-4 text-gray-500" />
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <Input
           placeholder="Search by name, email, or phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 border-slate-200 dark:border-slate-700 focus:border-emerald-400"
         />
       </div>
 
       {/* ---------- KANBAN ---------- */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto pb-2">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-4 min-w-max">
-            {columns.map((col) => (
-              <Droppable key={col} droppableId={col}>
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="bg-gray-50 p-4 rounded-xl w-72 min-h-[70vh] shadow-sm"
-                  >
-                    <h2 className="font-semibold capitalize mb-3">{col}</h2>
-                    {filtered
-                      .filter((c) => c.status === col)
-                      .map((c, index) => (
-                        <Draggable
-                          key={c.id}
-                          draggableId={c.id.toString()}
-                          index={index}
-                        >
-                          {(prov) => (
-                            <div
-                              ref={prov.innerRef}
-                              {...prov.draggableProps}
-                              {...prov.dragHandleProps}
+            {(["pending", "visited", "purchased", "resolved"] as const).map((col) => {
+              const colConfig = {
+                pending: {
+                  label: "Pending",
+                  headerBg: "bg-amber-500",
+                  colBg: "bg-amber-50/60 dark:bg-amber-950/10",
+                  border: "border-amber-200 dark:border-amber-900",
+                  dot: "bg-amber-400",
+                  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+                  priorityColor: "text-amber-600 dark:text-amber-400",
+                },
+                visited: {
+                  label: "Visited",
+                  headerBg: "bg-blue-500",
+                  colBg: "bg-blue-50/60 dark:bg-blue-950/10",
+                  border: "border-blue-200 dark:border-blue-900",
+                  dot: "bg-blue-400",
+                  badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+                  priorityColor: "text-blue-600 dark:text-blue-400",
+                },
+                purchased: {
+                  label: "Purchased",
+                  headerBg: "bg-emerald-500",
+                  colBg: "bg-emerald-50/60 dark:bg-emerald-950/10",
+                  border: "border-emerald-200 dark:border-emerald-900",
+                  dot: "bg-emerald-400",
+                  badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
+                  priorityColor: "text-emerald-600 dark:text-emerald-400",
+                },
+                resolved: {
+                  label: "Resolved",
+                  headerBg: "bg-slate-500",
+                  colBg: "bg-slate-50/60 dark:bg-slate-800/20",
+                  border: "border-slate-200 dark:border-slate-700",
+                  dot: "bg-slate-400",
+                  badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+                  priorityColor: "text-slate-500 dark:text-slate-400",
+                },
+              }[col];
+              const count = filtered.filter((c) => c.status === col).length;
+              return (
+                <Droppable key={col} droppableId={col}>
+                  {(provided) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className={`${colConfig.colBg} border ${colConfig.border} rounded-2xl w-72 min-h-[65vh] shadow-sm overflow-hidden`}
+                    >
+                      {/* Column Header */}
+                      <div className={`${colConfig.headerBg} px-4 py-3 flex items-center justify-between`}>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-white/60" />
+                          <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-white">{colConfig.label}</h2>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colConfig.badge}`}>{count}</span>
+                      </div>
+
+                      {/* Cards */}
+                      <div className="p-3">
+                        {filtered
+                          .filter((c) => c.status === col)
+                          .map((c, index) => (
+                            <Draggable
+                              key={c.id}
+                              draggableId={c.id.toString()}
+                              index={index}
                             >
-                              <Card
-                                onClick={() => {
-                                  setSelected(c);
-                                  fetchDetails(c.id);
-                                }}
-                                className="p-3 mb-3 cursor-pointer hover:bg-gray-100"
-                              >
-                                <p className="font-medium">{c.fullname}</p>
-                                <p className="text-xs text-gray-500">
-                                  {c.assigned_name || "Unassigned"}
-                                </p>
-                                <span className="text-xs text-primary">
-                                  {c.priority}
-                                </span>
-                              </Card>
+                              {(prov) => (
+                                <div
+                                  ref={prov.innerRef}
+                                  {...prov.draggableProps}
+                                  {...prov.dragHandleProps}
+                                >
+                                  <Card
+                                    onClick={() => {
+                                      setSelected(c);
+                                      fetchDetails(c.id);
+                                    }}
+                                    className="p-3 mb-2.5 cursor-pointer hover:shadow-md transition-all duration-150 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:-translate-y-0.5"
+                                  >
+                                    <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">{c.fullname}</p>
+                                    {c.email && <p className="text-xs text-slate-400 mt-0.5 truncate">{c.email}</p>}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                      {c.assigned_name || "Unassigned"}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <span className={`text-[10px] font-bold uppercase tracking-wide ${colConfig.priorityColor}`}>
+                                        {c.priority}
+                                      </span>
+                                      {c.phone && <span className="text-[10px] text-slate-400">{c.phone}</span>}
+                                    </div>
+                                  </Card>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                        {provided.placeholder}
+                        {count === 0 && (
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
+                              <UserCircle2 className="w-5 h-5 text-slate-300" />
                             </div>
-                          )}
-                        </Draggable>
-                      ))}
-                    {provided.placeholder}
-                    {filtered.filter((c) => c.status === col).length === 0 && (
-                      <p className="text-sm text-gray-400">No clients</p>
-                    )}
-                  </div>
-                )}
-              </Droppable>
-            ))}
+                            <p className="text-xs text-slate-400">No clients here</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Droppable>
+              );
+            })}
           </div>
         </DragDropContext>
       </div>
@@ -274,37 +349,35 @@ export default function ClientsPage() {
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto relative"
+            className="bg-card border border-border rounded-2xl shadow-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setSelected(null)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-black"
+              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-2xl font-bold mb-2">{selected.fullname}</h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <h2 className="text-xl font-bold tracking-tight mb-1">{selected.fullname}</h2>
+            <p className="text-sm text-muted-foreground mb-4">
               {selected.email || "-"} • {selected.phone || "-"}
             </p>
 
             <div className="space-y-2 mb-4">
-              <p>
-                <strong>Address:</strong> {selected.address || "-"}
-              </p>
+              <p className="text-sm"><strong>Address:</strong> {selected.address || "-"}</p>
               {selected.case_number && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                  <p className="font-semibold">Case #: {selected.case_number}</p>
-                  <p className="text-sm">{selected.description}</p>
+                <div className="mt-2 p-3 bg-muted/50 rounded-lg border border-border/60">
+                  <p className="font-semibold text-sm">Case #: {selected.case_number}</p>
+                  <p className="text-sm text-muted-foreground">{selected.description}</p>
                 </div>
               )}
             </div>
 
-            <hr className="my-4" />
+            <hr className="my-4 border-border" />
 
             {/* Notes */}
-            <div className="mt-4 border-t pt-3">
+            <div className="mt-4 border-t border-border pt-3">
               <h4 className="font-medium mb-2 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" /> Notes
               </h4>
@@ -325,7 +398,7 @@ export default function ClientsPage() {
                   notes.map((n) => (
                     <div
                       key={n.id}
-                      className="p-2 bg-gray-50 rounded-md text-sm flex justify-between items-start"
+                      className="p-2.5 bg-muted/40 border border-border/50 rounded-lg text-sm flex justify-between items-start"
                     >
                       <div className="flex-1 mr-2">
                         {editingNoteId === n.id ? (
@@ -339,7 +412,7 @@ export default function ClientsPage() {
                         ) : (
                           <>
                             <p>{n.nota}</p>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-muted-foreground/70 mt-0.5">
                               {n.author_name || "System"} •{" "}
                               {new Date(n.fecha).toLocaleString()}
                             </div>
@@ -381,7 +454,7 @@ export default function ClientsPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-gray-400">No notes yet</p>
+                  <p className="text-sm text-muted-foreground/50">No notes yet</p>
                 )}
               </div>
             </div>
@@ -406,29 +479,29 @@ export default function ClientsPage() {
                 {appointments.map((a) => (
                   <Card
                     key={a.id}
-                    className="p-3 cursor-pointer hover:bg-gray-50"
+                    className="p-3 cursor-pointer hover:bg-muted/50 transition-colors border-border/60"
                     onClick={() =>
                       (window.location.href = `/appointments?id=${a.id}`)
                     }
                   >
-                    <p className="font-medium">{a.title}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="font-semibold text-sm">{a.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {a.date_time
                         ? new Date(a.date_time).toLocaleString()
                         : "No date"}
                     </p>
-                    <p className="text-sm">{a.address}</p>
+                    <p className="text-sm mt-0.5">{a.address}</p>
                     {a.note && (
-                      <p className="text-xs text-gray-500 italic mt-1">
-                        🗒️ {a.note}
+                      <p className="text-xs text-muted-foreground/70 italic mt-1">
+                        {a.note}
                       </p>
                     )}
-                    <span className="text-xs text-blue-600">{a.status}</span>
+                    <span className="text-xs text-primary font-medium">{a.status}</span>
                   </Card>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">No appointments yet</p>
+              <p className="text-sm text-muted-foreground/50">No appointments yet</p>
             )}
 
             {/* Events */}
@@ -445,7 +518,7 @@ export default function ClientsPage() {
                       className="p-3 border-l-4 border-primary/60"
                     >
                       <p className="text-sm">{e.descripcion}</p>
-                      <small className="text-gray-500">
+                      <small className="text-muted-foreground/70">
                         {e.author_name} •{" "}
                         {new Date(e.fecha).toLocaleString()}
                       </small>
@@ -540,7 +613,7 @@ function ClientModal({ onClose, onSuccess }: any) {
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
     >
       <div
-        className="bg-white rounded-2xl shadow-lg w-[500px] p-6"
+        className="bg-card border border-border rounded-2xl shadow-xl w-[500px] p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-semibold mb-4">Add Client</h2>
@@ -589,7 +662,7 @@ function ClientModal({ onClose, onSuccess }: any) {
             <Textarea
               readOnly
               value={client.description}
-              className="bg-gray-100 text-gray-700"
+              className="bg-muted text-foreground"
             />
           )}
         </div>

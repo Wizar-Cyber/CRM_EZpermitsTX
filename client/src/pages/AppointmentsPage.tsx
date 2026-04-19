@@ -302,33 +302,42 @@ useEffect(() => {
 
   return (
     <div className="w-full space-y-4 relative">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-2xl font-semibold">Appointments</h2>
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1 bg-muted rounded-lg p-1">
-            {[{ name: "Month", view: Views.MONTH }, { name: "Week", view: Views.WEEK }, { name: "Day", view: Views.DAY }].map(({ name, view: v }) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                  view === v ? "bg-background shadow-sm" : ""
-                }`}
-              >
-                {name}
-              </button>
-            ))}
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <CalendarCheck className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Schedule</span>
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Appointments</h2>
+            <p className="text-violet-200 text-sm mt-0.5">Manage client visits and scheduled appointments</p>
           </div>
-          <Button
-            onClick={() => {
-              setSelectedEvent({ date_time: new Date().toISOString() });
-              setShowModal(true);
-            }}
-            className="rounded-2xl"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Appointment
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1 bg-white/15 backdrop-blur-sm rounded-xl p-1 border border-white/20">
+              {[{ name: "Month", view: Views.MONTH }, { name: "Week", view: Views.WEEK }, { name: "Day", view: Views.DAY }].map(({ name, view: v }) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+                    view === v ? "bg-white text-violet-700 shadow-sm" : "text-white/80 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={() => {
+                setSelectedEvent({ date_time: new Date().toISOString() });
+                setShowModal(true);
+              }}
+              className="bg-white text-violet-700 hover:bg-violet-50 font-semibold border-0 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Appointment
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -354,7 +363,7 @@ useEffect(() => {
 
       {/* Sidebar */}
       {clientInfo && (
-        <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl border-l border-gray-200 p-6 overflow-y-auto z-50">
+        <div className="fixed top-0 right-0 h-full w-96 bg-card shadow-xl border-l border-border p-6 overflow-y-auto z-50">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold flex items-center gap-2">
               <CalendarCheck className="w-5 h-5 text-blue-500" />
@@ -362,7 +371,7 @@ useEffect(() => {
             </h3>
             <button
               onClick={() => setClientInfo(null)}
-              className="text-gray-500 hover:text-black"
+              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -382,9 +391,9 @@ useEffect(() => {
           {/* Info cliente */}
           <div className="space-y-2 text-sm mb-4">
             {clientInfo.client_name && <p><strong>Client:</strong> {clientInfo.client_name}</p>}
-            {clientInfo.client_email && <p><Mail className="inline w-4 h-4 text-gray-500 mr-1" />{clientInfo.client_email}</p>}
-            {clientInfo.client_phone && <p><Phone className="inline w-4 h-4 text-gray-500 mr-1" />{clientInfo.client_phone}</p>}
-            {clientInfo.client_address && <p><MapPin className="inline w-4 h-4 text-gray-500 mr-1" />{clientInfo.client_address}</p>}
+            {clientInfo.client_email && <p><Mail className="inline w-4 h-4 text-muted-foreground mr-1" />{clientInfo.client_email}</p>}
+            {clientInfo.client_phone && <p><Phone className="inline w-4 h-4 text-muted-foreground mr-1" />{clientInfo.client_phone}</p>}
+            {clientInfo.client_address && <p><MapPin className="inline w-4 h-4 text-muted-foreground mr-1" />{clientInfo.client_address}</p>}
           </div>
 
           {/* Nota principal */}
@@ -409,7 +418,7 @@ useEffect(() => {
                 placeholder="Write an optional note..."
               />
             ) : (
-              <p className="text-sm bg-gray-50 p-2 rounded-md">
+              <p className="text-sm bg-muted/50 border border-border/60 p-2.5 rounded-lg">
                 {clientInfo.note || "No notes yet"}
               </p>
             )}
@@ -434,10 +443,10 @@ useEffect(() => {
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {clientInfo.notes?.length ? (
                 clientInfo.notes.map((n) => (
-                  <div key={n.id} className="p-2 bg-gray-50 rounded-md text-sm flex justify-between items-start">
+                  <div key={n.id} className="p-2.5 bg-muted/40 border border-border/50 rounded-lg text-sm flex justify-between items-start">
                     <div>
                       <p>{n.nota}</p>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground/70 mt-0.5">
                         {n.author_name || "System"} • {new Date(n.fecha).toLocaleString()}
                       </div>
                     </div>
@@ -451,7 +460,7 @@ useEffect(() => {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-gray-400">No notes yet</p>
+                <p className="text-sm text-muted-foreground/50">No notes yet</p>
               )}
             </div>
           </div>

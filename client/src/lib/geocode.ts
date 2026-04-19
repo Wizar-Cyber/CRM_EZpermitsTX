@@ -1,28 +1,25 @@
 /**
  * geocode.ts
  * Servicio de geocodificación para direcciones de Leads.
- * Utiliza la API de OpenStreetMap (Nominatim).
+ * Usa el proxy backend (/api/ors/geocode) para evitar bloqueos CORS en navegador.
  */
+
+import { apiGet } from "@/lib/api";
 
 export async function geocodeAddress(address: string) {
   try {
     if (!address.trim()) return null;
 
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      address
-    )}&limit=1`;
+    const data = await apiGet<{ coordinates?: [number, number] | null }>(
+      `/ors/geocode?text=${encodeURIComponent(address)}`
+    );
 
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-    });
+    const coords = data?.coordinates;
+    if (!coords || !Array.isArray(coords) || coords.length < 2) return null;
 
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (!data?.[0]) return null;
-
-    const lat = parseFloat(data[0].lat);
-    const lng = parseFloat(data[0].lon);
+    // ORS devuelve [lng, lat]
+    const lng = Number(coords[0]);
+    const lat = Number(coords[1]);
 
     return Number.isFinite(lat) && Number.isFinite(lng)
       ? { lat, lng }

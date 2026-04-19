@@ -251,7 +251,7 @@ function ClientModal({ open, onOpenChange, clientData, onSuccess = NOOP }: {
               placeholder="Description / Case Info (loaded from Lead or Case validation)"
               value={client.description}
               onChange={(e) => setClient({ ...client, description: e.target.value })}
-              className="bg-gray-50 text-gray-700 min-h-[100px]"
+              className="bg-muted text-foreground min-h-[100px]"
               onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
             />
           </div>
@@ -286,11 +286,11 @@ export function LeadsTable() {
   const [pageTab, setPageTab] = useState<"activos" | "clasificados">("activos");
 
   const statusColors = {
-    GREEN: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-    YELLOW: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    RED: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
-    BLUE: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-    DEFAULT: "bg-gray-500/10 text-gray-700 dark:text-gray-400",
+    GREEN: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
+    YELLOW: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+    RED: "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
+    BLUE: "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+    DEFAULT: "bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-900/50 dark:text-slate-400 dark:border-slate-700",
   };
 
   type MapItem = {
@@ -643,41 +643,61 @@ export function LeadsTable() {
   const HeaderAndFilters = ({ list }: { list: Lead[] }) => (
     <>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">
-          {pageTab === "activos" ? "Leads" : "Leads Clasificados"}
-        </h2>
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {pageTab === "activos" ? "Active Leads" : "Classified Leads"}
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{list.length} records</p>
+        </div>
         <div className="flex gap-2">
-          <Button type="button" onClick={copySelectedDetails} disabled={!selected.length} variant="outline">
-            <Copy className="w-4 h-4 mr-2" /> Copy ({selected.length})
+          <Button type="button" onClick={copySelectedDetails} disabled={!selected.length} variant="outline" size="sm" className="text-xs cursor-pointer">
+            <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy ({selected.length})
           </Button>
           <Button
             type="button"
+            size="sm"
+            className="text-xs cursor-pointer"
             onClick={() => sendMany(list.filter((l) => selected.includes(l.case_number)))}
             disabled={!selected.length}
           >
-            <MapPin className="w-4 h-4 mr-2" /> Send to Map
+            <MapPin className="w-3.5 h-3.5 mr-1.5" /> Send to Map
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
-        <Input
-          placeholder="Search by case number or address..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-xs"
-        />
-        <div className="flex gap-2">
-          {["All", "GREEN", "BLUE", "YELLOW", "RED"].map((f) => (
-            <Button
-              key={f}
+      <div className="flex flex-col md:flex-row justify-between gap-3 mb-4">
+        <div className="relative max-w-xs w-full">
+          <Input
+            placeholder="Search case number or address..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-9 text-sm border-slate-200 dark:border-slate-700"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {[
+            { key: null, label: "All", bg: "bg-slate-100 dark:bg-slate-800", active: "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900", dot: null },
+            { key: "GREEN", label: "Active", bg: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400", active: "bg-emerald-600 text-white", dot: "bg-emerald-500" },
+            { key: "BLUE", label: "Follow-up", bg: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400", active: "bg-blue-600 text-white", dot: "bg-blue-500" },
+            { key: "YELLOW", label: "Pending", bg: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400", active: "bg-amber-500 text-white", dot: "bg-amber-400" },
+            { key: "RED", label: "Resolved", bg: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400", active: "bg-rose-600 text-white", dot: "bg-rose-500" },
+          ].map(({ key, label, bg, active, dot }) => (
+            <button
+              key={key ?? "all"}
               type="button"
-              size="sm"
-              variant={colorFilter === (f === "All" ? null : f) ? "secondary" : "ghost"}
-              onClick={() => setColorFilter(f === "All" ? null : f)}
+              onClick={() => setColorFilter(key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
+                colorFilter === key
+                  ? `${active} border-transparent shadow-sm`
+                  : `${bg} border-transparent hover:opacity-80`
+              }`}
             >
-              {f}
-            </Button>
+              {dot && <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />}
+              {label}
+            </button>
           ))}
         </div>
       </div>
@@ -685,18 +705,19 @@ export function LeadsTable() {
   );
 
   const Table = ({ list }: { list: Lead[] }) => (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
       <table className="w-full">
-        <thead className="bg-muted/50">
-          <tr className="text-center">
-            <th className="p-4">
+        <thead>
+          <tr className="bg-gradient-to-r from-slate-800 to-slate-700">
+            <th className="p-4 w-10">
               <Checkbox
                 checked={selected.length === list.length && !!list.length}
                 onCheckedChange={(chk) => toggleSelectAll(!!chk, list)}
+                className="border-slate-400 data-[state=checked]:bg-white data-[state=checked]:text-slate-800"
               />
             </th>
             {["case_number", "incident_address", "status", "tag_score", "channel"].map((col) => (
-              <th key={col} className="p-4 text-center">
+              <th key={col} className="p-4 text-left">
                 <button
                   onClick={() => {
                     if (col !== "tag_score") {
@@ -705,20 +726,20 @@ export function LeadsTable() {
                       else setSortField(col);
                     }
                   }}
-                  className="flex items-center justify-center gap-2 font-semibold text-sm hover:underline"
+                  className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 hover:text-white transition-colors cursor-pointer"
                 >
                   {col === "tag_score"
-                    ? "Tag / Score"
+                    ? "Classification"
                     : col.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  {col !== "tag_score" && <ArrowUpDown className="w-4 h-4" />}
+                  {col !== "tag_score" && <ArrowUpDown className="w-3 h-3 opacity-60" />}
                 </button>
               </th>
             ))}
-            <th className="p-4 text-center font-semibold text-sm">Actions</th>
+            <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {list.map((lead) => {
+          {list.map((lead, idx) => {
             const auto = getLeadClassification(lead);
             const manualKey = (((lead as any).manual_classification || "") as string).toUpperCase();
             const colorKey = (["GREEN","YELLOW","BLUE","RED"].includes(manualKey) ? manualKey : auto.color) as keyof typeof statusColors;
@@ -729,9 +750,15 @@ export function LeadsTable() {
             return (
               <tr
                 key={lead.case_number}
-                className={`border-t hover:bg-muted/40 ${isResolved ? "opacity-60 bg-slate-200/60" : ""}`}
+                className={`border-t border-slate-100 dark:border-slate-800 transition-colors cursor-pointer ${
+                  isResolved
+                    ? "opacity-50 bg-slate-50 dark:bg-slate-900/50"
+                    : idx % 2 === 0
+                    ? "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    : "bg-slate-50/40 dark:bg-slate-800/20 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
               >
-                <td className="p-4">
+                <td className="p-4" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selected.includes(lead.case_number)}
                     onCheckedChange={(chk) =>
@@ -739,52 +766,48 @@ export function LeadsTable() {
                     }
                   />
                 </td>
-                <td className="p-4 font-medium">{lead.case_number}</td>
-                <td className="p-4 text-muted-foreground">{lead.incident_address}</td>
-                <td className="p-4">
-                  <Badge className={`${statusColors[colorKey]} rounded-full px-3 py-1`}>
+                <td className="p-4 font-semibold text-sm text-slate-800 dark:text-slate-200" onClick={() => setModalLead(lead)}>{lead.case_number}</td>
+                <td className="p-4 text-sm text-slate-500 dark:text-slate-400 max-w-[220px] truncate" onClick={() => setModalLead(lead)}>{lead.incident_address}</td>
+                <td className="p-4" onClick={() => setModalLead(lead)}>
+                  <Badge className={`${statusColors[colorKey]} rounded-full px-2.5 py-0.5 text-[11px] font-medium`}>
                     {lead.status || "—"}
                   </Badge>
                 </td>
-                <td className="p-4 text-sm text-muted-foreground">
-                  <div>{auto.tag}</div>
-                  <div className="text-xs opacity-80">Score: {auto.score}</div>
+                <td className="p-4 text-sm" onClick={() => setModalLead(lead)}>
+                  <div className="font-medium text-slate-700 dark:text-slate-300">{auto.tag}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">Score: {auto.score}/10</div>
                 </td>
-                <td className="p-4">{lead.channel || "—"}</td>
+                <td className="p-4 text-sm text-slate-500 dark:text-slate-400" onClick={() => setModalLead(lead)}>{lead.channel || "—"}</td>
                 <td className="p-4">
-                  <div className="flex gap-2">
-                    <Button type="button" size="icon" variant="ghost" onClick={() => setModalLead(lead)} title="View Details">
-                      <Eye className="w-4 h-4" />
+                  <div className="flex gap-1">
+                    <Button type="button" size="icon" variant="ghost" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onClick={() => setModalLead(lead)} title="View Details">
+                      <Eye className="w-3.5 h-3.5 text-slate-500" />
                     </Button>
-                    <Button type="button" size="icon" variant="ghost" onClick={() => sendOne(lead)} title="Send to Map">
-                      <MapPin className="w-4 h-4" />
+                    <Button type="button" size="icon" variant="ghost" className="h-8 w-8 hover:bg-blue-50 dark:hover:bg-blue-950/30 cursor-pointer" onClick={() => sendOne(lead)} title="Send to Map">
+                      <MapPin className="w-3.5 h-3.5 text-blue-500" />
                     </Button>
                     <Button
                       type="button"
                       size="icon"
                       variant="ghost"
+                      className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
                       onClick={() => handleOpenCreateClientModal(lead)}
                       title="Create Client"
                     >
-                      <UserPlus className="w-4 h-4" />
+                      <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
                     </Button>
-                    {/* Botón de eliminar (oculto por solicitud) */}
-                    {/*
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDeleteLead(lead.case_number)}
-                      title="Delete Lead"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </Button>
-                    */}
                   </div>
                 </td>
               </tr>
             );
           })}
+          {list.length === 0 && (
+            <tr>
+              <td colSpan={7} className="p-12 text-center text-slate-400 text-sm">
+                No leads match your current filters
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -792,11 +815,14 @@ export function LeadsTable() {
 
   return (
     <div className="w-full">
-      {/* pestañas de la página */}
       <Tabs value={pageTab} onValueChange={(v) => setPageTab(v as any)} className="w-full">
-        <TabsList className="mb-2">
-          <TabsTrigger value="activos">Leads</TabsTrigger>
-          <TabsTrigger value="clasificados">Leads Clasificados</TabsTrigger>
+        <TabsList className="mb-5 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+          <TabsTrigger value="activos" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+            Active Leads
+          </TabsTrigger>
+          <TabsTrigger value="clasificados" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+            Classified Leads
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activos" className="space-y-4">
