@@ -3,7 +3,6 @@ import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
   Views,
-  type View,
 } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay, startOfToday } from "date-fns";
@@ -28,17 +27,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
 import { toast } from "sonner";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
-
-type ConfirmAction = {
-  title: string;
-  description: string;
-  confirmLabel?: string;
-  destructive?: boolean;
-  onConfirm: () => void;
-};
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -76,7 +66,7 @@ interface Appointment {
 }
 
 export default function AppointmentsPage() {
-  const [view, setView] = useState<View>(Views.MONTH);
+  const [view, setView] = useState(Views.MONTH);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Partial<Appointment> | null>(null);
   const [clientInfo, setClientInfo] = useState<Appointment | null>(null);
@@ -85,8 +75,6 @@ export default function AppointmentsPage() {
   const [tempNote, setTempNote] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [newNote, setNewNote] = useState("");
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
   // 🔄 Cargar citas
   const refreshAppointments = useCallback(async () => {
@@ -135,8 +123,7 @@ useEffect(() => {
       toast.info("Cannot create appointments in the past.");
       return;
     }
-    const safeStart = start < new Date() ? addMinutes(new Date(), 5) : start;
-    setSelectedEvent({ date_time: safeStart.toISOString() });
+    setSelectedEvent({ date_time: start });
     setShowModal(true);
   }, []);
 
@@ -179,7 +166,7 @@ useEffect(() => {
       refreshAppointments();
     } catch (err) {
       console.error("❌ Error saving appointment:", err);
-      toast.error(err instanceof Error ? err.message : "Error saving appointment");
+      toast.error("Error saving appointment");
     }
   };
 
@@ -252,6 +239,7 @@ useEffect(() => {
   // ❌ Eliminar nota adicional
   const handleDeleteExtraNote = async (noteId: number) => {
     if (!clientInfo?.id) return;
+    if (!confirm("Delete this note?")) return;
     try {
       await apiDelete(`/appointments/${clientInfo.id}/notes/${noteId}`);
       const updatedNotes = clientInfo.notes?.filter((n) => n.id !== noteId) || [];
@@ -334,14 +322,14 @@ useEffect(() => {
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
                     view === v ? "bg-white text-violet-700 shadow-sm" : "text-white/80 hover:text-white hover:bg-white/10"
                   }`}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
             <Button
               onClick={() => {
-                setSelectedEvent({ date_time: addMinutes(new Date(), 5).toISOString() });
+                setSelectedEvent({ date_time: new Date().toISOString() });
                 setShowModal(true);
               }}
               className="bg-white text-violet-700 hover:bg-violet-50 font-semibold border-0 shadow-sm cursor-pointer"
@@ -383,7 +371,7 @@ useEffect(() => {
             </h3>
             <button
               onClick={() => setClientInfo(null)}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -430,7 +418,7 @@ useEffect(() => {
                 placeholder="Write an optional note..."
               />
             ) : (
-              <p className="text-sm bg-muted/50 p-2 rounded-md">
+              <p className="text-sm bg-muted/50 border border-border/60 p-2.5 rounded-lg">
                 {clientInfo.note || "No notes yet"}
               </p>
             )}
@@ -455,35 +443,24 @@ useEffect(() => {
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {clientInfo.notes?.length ? (
                 clientInfo.notes.map((n) => (
-                  <div key={n.id} className="p-2 bg-muted/50 rounded-md text-sm flex justify-between items-start">
+                  <div key={n.id} className="p-2.5 bg-muted/40 border border-border/50 rounded-lg text-sm flex justify-between items-start">
                     <div>
                       <p>{n.nota}</p>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground/70 mt-0.5">
                         {n.author_name || "System"} • {new Date(n.fecha).toLocaleString()}
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() =>
-                        setConfirmAction({
-                          title: "Delete note",
-                          description: "Are you sure you want to delete this note?",
-                          confirmLabel: "Delete note",
-                          destructive: true,
-                          onConfirm: () => {
-                            handleDeleteExtraNote(n.id);
-                            setConfirmAction(null);
-                          },
-                        })
-                      }
+                      onClick={() => handleDeleteExtraNote(n.id)}
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No notes yet</p>
+                <p className="text-sm text-muted-foreground/50">No notes yet</p>
               )}
             </div>
           </div>
@@ -518,18 +495,6 @@ useEffect(() => {
           onDelete={handleDeleteAppointment}
         />
       )}
-
-      <ConfirmActionDialog
-        open={!!confirmAction}
-        onOpenChange={(open) => {
-          if (!open) setConfirmAction(null);
-        }}
-        title={confirmAction?.title || "Confirm action"}
-        description={confirmAction?.description || "Are you sure you want to continue?"}
-        confirmLabel={confirmAction?.confirmLabel || "Confirm"}
-        destructive={!!confirmAction?.destructive}
-        onConfirm={() => confirmAction?.onConfirm()}
-      />
     </div>
   );
 }
