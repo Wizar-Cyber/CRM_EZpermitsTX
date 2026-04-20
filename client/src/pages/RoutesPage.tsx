@@ -575,7 +575,7 @@ export default function RoutesPage() {
 
               <TabsContent value="route" className="space-y-1">
                 <DetailItem label="Route Name">
-                  {fullLeadDetails.route_name || (fullLeadDetails.assigned_route_id ? `Route ${fullLeadDetails.assigned_route_id}` : "—")}
+                  {(fullLeadDetails as any).route_name || ((fullLeadDetails as any).assigned_route_id ? `Route ${(fullLeadDetails as any).assigned_route_id}` : "—")}
                 </DetailItem>
                 <DetailItem label="Sent to Delivery">
                   {fullLeadDetails.sent_to_delivery_date

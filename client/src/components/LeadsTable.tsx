@@ -883,14 +883,14 @@ export function LeadsTable() {
                     : "—"}
                 </DetailItem>
                 <DetailItem label="URL">
-                  {modalLead.url ? (
+                  {(modalLead as any).url ? (
                     <a
-                      href={modalLead.url}
+                      href={(modalLead as any).url}
                       target="_blank"
                       rel="noreferrer"
                       className="text-blue-600 underline break-all"
                     >
-                      {modalLead.url}
+                      {(modalLead as any).url}
                     </a>
                   ) : (
                     "—"
@@ -908,7 +908,9 @@ export function LeadsTable() {
                     : "—"}
                 </DetailItem>
                 <DetailItem label="Resolve By">
-                  {modalLead.resolve_by_time}
+                  {modalLead.resolve_by_time
+                    ? new Date(modalLead.resolve_by_time as any).toLocaleString()
+                    : "—"}
                 </DetailItem>
               </TabsContent>
               <TabsContent value="location">

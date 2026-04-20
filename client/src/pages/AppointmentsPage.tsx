@@ -3,6 +3,7 @@ import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
   Views,
+  type View,
 } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay, startOfToday } from "date-fns";
@@ -66,7 +67,7 @@ interface Appointment {
 }
 
 export default function AppointmentsPage() {
-  const [view, setView] = useState(Views.MONTH);
+  const [view, setView] = useState<View>(Views.MONTH);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Partial<Appointment> | null>(null);
   const [clientInfo, setClientInfo] = useState<Appointment | null>(null);
@@ -123,7 +124,7 @@ useEffect(() => {
       toast.info("Cannot create appointments in the past.");
       return;
     }
-    setSelectedEvent({ date_time: start });
+    setSelectedEvent({ date_time: start.toISOString() });
     setShowModal(true);
   }, []);
 

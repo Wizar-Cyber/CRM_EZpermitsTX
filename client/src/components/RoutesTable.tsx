@@ -20,6 +20,8 @@ type RoutesTableProps = {
   deleteId: number | null;
   onDeleteCancel: () => void;
   onDeleteConfirm: () => void;
+  onDownload?: (route: Route) => void;
+  onSelectRoute?: (route: Route) => void;
 };
 
 export function RoutesTable({
