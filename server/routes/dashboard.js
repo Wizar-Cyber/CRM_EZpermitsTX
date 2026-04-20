@@ -1029,10 +1029,10 @@ router.get("/green-leads", authenticate, async (req, res) => {
     const sort   = typeof req.query.sort   === "string" ? req.query.sort          : "days_desc";
 
     const validSorts = {
-      days_desc:  "days_waiting DESC NULLS LAST, l.classified_at ASC NULLS LAST",
-      days_asc:   "days_waiting ASC  NULLS LAST, l.classified_at DESC NULLS LAST",
-      date_desc:  "l.classified_at DESC NULLS LAST",
-      date_asc:   "l.classified_at ASC  NULLS LAST",
+      days_desc:  "days_waiting DESC NULLS LAST, l.created_date_inspector ASC NULLS LAST",
+      days_asc:   "days_waiting ASC  NULLS LAST, l.created_date_inspector DESC NULLS LAST",
+      date_desc:  "l.created_date_inspector DESC NULLS LAST",
+      date_asc:   "l.created_date_inspector ASC  NULLS LAST",
     };
     const orderBy = validSorts[sort] ?? validSorts.days_desc;
 
@@ -1060,6 +1060,8 @@ router.get("/green-leads", authenticate, async (req, res) => {
         l.lat,
         l.lng,
         CASE
+          WHEN l.created_date_inspector IS NOT NULL
+          THEN EXTRACT(DAY FROM NOW() - l.created_date_inspector)::int
           WHEN l.classified_at IS NOT NULL
           THEN EXTRACT(DAY FROM NOW() - l.classified_at)::int
           ELSE NULL
@@ -1073,7 +1075,7 @@ router.get("/green-leads", authenticate, async (req, res) => {
     const { rows } = await pool.query(sql, params);
 
     const total     = rows.length;
-    const available = rows.filter(r => !r.classified_at || r.days_waiting !== null).length;
+    const available = rows.filter(r => !r.created_date_inspector || r.days_waiting !== null).length;
 
     return res.json({ total, available, leads: rows });
   } catch (err) {

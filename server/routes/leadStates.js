@@ -474,6 +474,7 @@ leadStatesRouter.patch("/:caseNumber/close", async (req, res) => {
       `UPDATE houston_311_bcv
           SET current_state = 'CLOSED',
               consulta = 'red',
+              manual_classification = 'red',
               updated_at = $2
         WHERE case_number = $1`,
       [caseNumber, now]
@@ -530,6 +531,7 @@ leadStatesRouter.patch("/:caseNumber/reopen", async (req, res) => {
       `UPDATE houston_311_bcv
           SET current_state = 'IN_DELIVERY',
               consulta = 'red',
+              manual_classification = 'red',
               contacted_at = NULL,
               contact_result = NULL,
               sent_to_delivery_date = COALESCE(sent_to_delivery_date, $2),

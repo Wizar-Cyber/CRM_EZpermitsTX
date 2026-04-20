@@ -86,6 +86,7 @@ router.post("/", async (req, res) => {
                   ELSE 'IN_DELIVERY'
                 END,
               consulta = 'red',
+              manual_classification = 'red',
               sent_to_delivery_date = COALESCE(sent_to_delivery_date, NOW()),
               assigned_route_id = $2,
               delivery_attempts = COALESCE(delivery_attempts, 0) + 1,
@@ -429,6 +430,7 @@ router.put("/:id", async (req, res) => {
                   ELSE 'IN_DELIVERY'
                 END,
                 consulta = 'red',
+                manual_classification = 'red',
                 sent_to_delivery_date = COALESCE(sent_to_delivery_date, NOW()),
                 assigned_route_id = $2,
                 delivery_attempts = COALESCE(delivery_attempts, 0) + 1,

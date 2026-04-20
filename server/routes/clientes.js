@@ -101,6 +101,7 @@ router.post("/", authenticate, async (req, res) => {
       await pool.query(
         `UPDATE houston_311_bcv
             SET consulta = 'red',
+                manual_classification = 'red',
                 updated_at = NOW()
           WHERE case_number = $1
             AND (consulta IS DISTINCT FROM 'red')`,

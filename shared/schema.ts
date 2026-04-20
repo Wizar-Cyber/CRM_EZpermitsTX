@@ -44,6 +44,7 @@ export const leads = pgTable("houston_311_bcv", {
   // Classification fields
   manual_classification: text("manual_classification"), // green, yellow, blue, red
   consulta: text("consulta"), // red, green, yellow, blue
+  classified_at: timestamp("classified_at"), // fecha de clasificación manual
   
   // Process state management
   current_state: text("current_state").default("CASE_REVIEW"), // CASE_REVIEW, LEAD, IN_DELIVERY, AWAITING_CONTACT, FOLLOW_UP, DISCARDED

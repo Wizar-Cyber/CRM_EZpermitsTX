@@ -68,27 +68,6 @@ export function GreenLeadsTab() {
     [leads]
   );
 
-  const handleDelivery = async (caseNumbers: string[]) => {
-    try {
-      await Promise.all(
-        caseNumbers.map((cn) =>
-          apiPatch(`/leads/${cn}/delivery`, { delivery_status: "first_sent" })
-        )
-      );
-      setLeads((prev) => prev.filter((l) => !caseNumbers.includes(l.case_number)));
-      setSelected((prev) => {
-        const next = new Set(prev);
-        caseNumbers.forEach((cn) => next.delete(cn));
-        return next;
-      });
-      toast.success(
-        caseNumbers.length === 1 ? "Marked as delivery" : `${caseNumbers.length} leads marked as delivery`
-      );
-    } catch (err: any) {
-      toast.error(err?.message ?? "Error marking as delivery");
-    }
-  };
-
   const handleRoute = (caseNumbers: string[]) => {
     // MapView lee de localStorage con key "selectedLeadsForMap"
     // Formato esperado: Array<{id, address, case_number, lat?, lng?}>
@@ -181,12 +160,6 @@ export function GreenLeadsTab() {
         <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-600 text-white rounded-lg flex-wrap">
           <span className="text-sm font-medium">{selected.size} seleccionados</span>
           <div className="flex gap-2 ml-auto">
-            <button
-              onClick={() => handleDelivery(Array.from(selected))}
-              className="px-3 py-1 bg-white text-blue-700 rounded text-xs font-semibold hover:bg-blue-50 transition-colors"
-            >
-              Mark as Delivery
-            </button>
             <button
               onClick={() => handleRoute(Array.from(selected))}
               className="px-3 py-1 bg-blue-800 text-white rounded text-xs font-semibold hover:bg-blue-900 transition-colors"
@@ -282,12 +255,6 @@ export function GreenLeadsTab() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1.5 justify-end">
-                        <button
-                          onClick={() => handleDelivery([lead.case_number])}
-                          className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded text-xs font-medium hover:bg-green-100 transition-colors"
-                        >
-                          Delivery
-                        </button>
                         <button
                           onClick={() => handleRoute([lead.case_number])}
                           className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-medium hover:bg-blue-100 transition-colors"
