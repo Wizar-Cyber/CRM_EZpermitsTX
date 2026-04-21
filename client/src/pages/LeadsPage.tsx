@@ -6,7 +6,7 @@ export default function LeadsPage() {
   return (
     <div className="w-full space-y-0">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
+      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl p-6 mb-6 text-white shadow-lg">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">

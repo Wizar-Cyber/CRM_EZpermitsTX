@@ -304,7 +304,7 @@ useEffect(() => {
   return (
     <div className="w-full space-y-4 relative">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-2xl px-6 py-5 text-white shadow-lg">
+      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
@@ -312,7 +312,7 @@ useEffect(() => {
               <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Schedule</span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight">Appointments</h2>
-            <p className="text-violet-200 text-sm mt-0.5">Manage client visits and scheduled appointments</p>
+            <p className="text-blue-200 text-sm mt-0.5">Manage client visits and scheduled appointments</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-1 bg-white/15 backdrop-blur-sm rounded-xl p-1 border border-white/20">
@@ -321,7 +321,7 @@ useEffect(() => {
                   key={v}
                   onClick={() => setView(v)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
-                    view === v ? "bg-white text-violet-700 shadow-sm" : "text-white/80 hover:text-white hover:bg-white/10"
+                    view === v ? "bg-white text-[#103360] shadow-sm" : "text-white/80 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   {name}
@@ -333,7 +333,7 @@ useEffect(() => {
                 setSelectedEvent({ date_time: new Date().toISOString() });
                 setShowModal(true);
               }}
-              className="bg-white text-violet-700 hover:bg-violet-50 font-semibold border-0 shadow-sm cursor-pointer"
+              className="bg-white text-[#103360] hover:bg-violet-50 font-semibold border-0 shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Appointment

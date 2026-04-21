@@ -9,7 +9,7 @@ export default function MapPage() {
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-2xl px-6 py-4 text-white shadow-lg flex items-center justify-between shrink-0">
+      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl px-6 py-4 text-white shadow-lg flex items-center justify-between shrink-0">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <Map className="w-4 h-4 opacity-70" />

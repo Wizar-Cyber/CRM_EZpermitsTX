@@ -271,7 +271,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-500 rounded-2xl px-6 py-5 text-white shadow-lg">
+      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">

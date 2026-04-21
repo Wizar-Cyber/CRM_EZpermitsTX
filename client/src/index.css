@@ -25,19 +25,19 @@
 
   --card-border: 210 8% 90%;
 
-  --sidebar: 210 6% 94%;
+  --sidebar: 214 74% 20%;
 
-  --sidebar-foreground: 214 20% 15%;
+  --sidebar-foreground: 0 0% 96%;
 
-  --sidebar-border: 210 8% 86%;
+  --sidebar-border: 214 50% 26%;
 
   --sidebar-primary: 214 71% 22%;
 
   --sidebar-primary-foreground: 210 20% 98%;
 
-  --sidebar-accent: 210 12% 88%;
+  --sidebar-accent: 214 60% 27%;
 
-  --sidebar-accent-foreground: 214 25% 20%;
+  --sidebar-accent-foreground: 0 0% 98%;
 
   --sidebar-ring: 214 71% 22%;
 
@@ -143,9 +143,9 @@
 
   --card-border: 214 8% 16%;
 
-  --sidebar: 214 6% 14%;
+  --sidebar: 214 74% 17%;
 
-  --sidebar-foreground: 210 15% 90%;
+  --sidebar-foreground: 0 0% 96%;
 
   --sidebar-border: 214 8% 20%;
 
@@ -153,9 +153,9 @@
 
   --sidebar-primary-foreground: 210 20% 98%;
 
-  --sidebar-accent: 214 8% 18%;
+  --sidebar-accent: 214 60% 24%;
 
-  --sidebar-accent-foreground: 210 20% 92%;
+  --sidebar-accent-foreground: 0 0% 98%;
 
   --sidebar-ring: 214 71% 35%;
 
@@ -332,4 +332,74 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+/* ── React Big Calendar — EZpermitsTX brand styling ── */
+.rbc-toolbar button {
+  color: #103360;
+  border-color: #103360;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.rbc-toolbar button:hover {
+  background-color: #103360 !important;
+  color: white !important;
+  border-color: #103360 !important;
+}
+.rbc-toolbar button.rbc-active,
+.rbc-toolbar button.rbc-active:hover,
+.rbc-toolbar button.rbc-active:focus {
+  background-color: #103360 !important;
+  color: white !important;
+  border-color: #103360 !important;
+  box-shadow: 0 1px 4px rgba(16,51,96,0.25);
+}
+.rbc-toolbar-label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #103360;
+}
+.rbc-today {
+  background-color: rgba(16, 51, 96, 0.06) !important;
+}
+.rbc-selected-cell {
+  background-color: rgba(16, 51, 96, 0.10) !important;
+}
+.rbc-header {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #103360;
+  padding: 8px 4px;
+  border-bottom: 2px solid rgba(16, 51, 96, 0.12);
+}
+.rbc-month-row:hover {
+  background-color: rgba(16, 51, 96, 0.01);
+}
+.rbc-day-bg:hover {
+  background-color: rgba(16, 51, 96, 0.04);
+  cursor: pointer;
+}
+
+/* Dark mode calendar */
+.dark .rbc-toolbar button {
+  color: #93b4dd;
+  border-color: #2a5a9a;
+}
+.dark .rbc-toolbar button:hover,
+.dark .rbc-toolbar button.rbc-active {
+  background-color: #1a4a8a !important;
+  color: white !important;
+  border-color: #1a4a8a !important;
+}
+.dark .rbc-toolbar-label {
+  color: #93b4dd;
+}
+.dark .rbc-header {
+  color: #7aa8d6;
+  border-bottom-color: rgba(147, 180, 221, 0.15);
+}
+.dark .rbc-today {
+  background-color: rgba(26, 74, 138, 0.15) !important;
 }

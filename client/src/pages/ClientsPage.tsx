@@ -185,7 +185,7 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -202,7 +202,7 @@ export default function ClientsPage() {
             </div>
             <Button
               onClick={() => setShowModal(true)}
-              className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold shadow-sm border-0 cursor-pointer"
+              className="bg-white text-[#103360] hover:bg-emerald-50 font-semibold shadow-sm border-0 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 mr-1.5" /> Add Client
             </Button>
@@ -251,7 +251,7 @@ export default function ClientsPage() {
                   colBg: "bg-emerald-50/60 dark:bg-emerald-950/10",
                   border: "border-emerald-200 dark:border-emerald-900",
                   dot: "bg-emerald-400",
-                  badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
+                  badge: "bg-emerald-100 text-[#103360] dark:bg-emerald-900/40 dark:text-emerald-400",
                   priorityColor: "text-emerald-600 dark:text-emerald-400",
                 },
                 resolved: {
