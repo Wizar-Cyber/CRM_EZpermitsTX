@@ -39,7 +39,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarContent className="flex flex-col">
 
         {/* ── Logo ── */}
@@ -62,18 +62,21 @@ export function AppSidebar() {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <Link
-                      href={item.url}
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.title}
                       data-testid={`link-${item.title.toLowerCase()}`}
-                      data-active={isActive ? "true" : undefined}
-                      className="sidebar-nav-item"
+                      className="sidebar-nav-item rounded-xl"
                     >
-                      <item.icon style={{ width: "1.1rem", height: "1.1rem", flexShrink: 0 }} />
-                      <span className="text-sm">{item.title}</span>
-                      {isActive && (
-                        <ChevronRight style={{ width: "0.875rem", height: "0.875rem", marginLeft: "auto", opacity: 0.6 }} />
-                      )}
-                    </Link>
+                      <Link href={item.url}>
+                        <item.icon style={{ width: "1.1rem", height: "1.1rem" }} />
+                        <span>{item.title}</span>
+                        {isActive && (
+                          <ChevronRight style={{ width: "0.875rem", height: "0.875rem", marginLeft: "auto", opacity: 0.6 }} />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
