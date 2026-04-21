@@ -66,15 +66,20 @@ export function AppSidebar() {
                       asChild
                       isActive={isActive}
                       data-testid={`link-${item.title.toLowerCase()}`}
-                      className={
-                        isActive
-                          ? "bg-gradient-to-l from-[#103360] to-[#1565c0] text-white hover:from-[#103360] hover:to-[#1565c0] hover:text-white font-semibold rounded-xl"
-                          : "text-muted-foreground hover:bg-gradient-to-l hover:from-[#103360] hover:to-[#1565c0] hover:text-white rounded-xl transition-all"
-                      }
+                      className="p-0 rounded-xl"
+                      style={{ background: "none" }}
                     >
-                      <Link href={item.url} className="flex items-center gap-3 px-3 py-2.5">
+                      <Link
+                        href={item.url}
+                        className={[
+                          "flex items-center gap-3 px-3 py-2.5 w-full rounded-xl transition-all",
+                          isActive
+                            ? "bg-gradient-to-r from-[#103360] to-[#1565c0] text-white font-semibold"
+                            : "text-muted-foreground hover:bg-gradient-to-r hover:from-[#103360] hover:to-[#1565c0] hover:text-white",
+                        ].join(" ")}
+                      >
                         <item.icon
-                          className={`shrink-0 ${isActive ? "text-white" : "text-muted-foreground group-hover:text-white"}`}
+                          className="shrink-0"
                           style={{ width: "1.1rem", height: "1.1rem" }}
                         />
                         <span className="text-sm">{item.title}</span>

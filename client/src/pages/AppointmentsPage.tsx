@@ -304,7 +304,7 @@ useEffect(() => {
   return (
     <div className="w-full space-y-4 relative">
       {/* Hero Header */}
-      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-0.5">

@@ -326,7 +326,7 @@ export default function RoutesPage() {
   return (
     <div className="space-y-4">
       {/* Hero Header */}
-      <div className="bg-gradient-to-l from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
