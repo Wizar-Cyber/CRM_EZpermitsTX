@@ -582,8 +582,6 @@ export default function DeliveryLeadsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tabs value={mode} onValueChange={(v: string) => setMode(v as typeof mode)} className="w-full md:w-auto">
           <TabsList className="mb-0">

@@ -14,6 +14,12 @@ import { Link, useLocation } from "wouter";
 import {
   Sidebar,
   SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/features/hooks/useAuth";
 
@@ -31,82 +37,86 @@ const menuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
-  const isAdmin = user && (user as any).role === "admin";
 
   return (
-    <Sidebar className="border-r-0 shadow-xl">
-      <SidebarContent
-        className="flex flex-col h-full"
-        style={{ background: "linear-gradient(180deg, #0d2d5a 0%, #103360 60%, #0e2d58 100%)" }}
-      >
+    <Sidebar>
+      <SidebarContent className="flex flex-col">
+
         {/* ── Logo ── */}
-        <div className="px-5 pt-6 pb-5 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5 text-white" />
+        <SidebarGroup>
+          <SidebarGroupLabel className="flex items-center gap-2 py-4 px-2">
+            <div className="w-7 h-7 rounded-lg bg-[#103360] flex items-center justify-center shrink-0">
+              <Shield className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <p className="text-white font-bold text-sm tracking-wide leading-tight">
-                EZpermitsTX
-              </p>
-              <p className="text-white/40 text-[11px] leading-tight">CRM Platform</p>
-            </div>
-          </div>
-        </div>
+            <span className="text-base font-bold text-[#103360] dark:text-white tracking-wide">
+              EZpermitsTX
+            </span>
+          </SidebarGroupLabel>
+        </SidebarGroup>
 
         {/* ── Navigation ── */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <p className="text-white/30 text-[10px] font-semibold uppercase tracking-widest px-3 mb-3">
-            Main Menu
-          </p>
-          {menuItems.map((item) => {
-            const isActive = location === item.url;
-            return (
-              <Link href={item.url} key={item.title}>
-                <div
-                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 ${
-                    isActive
-                      ? "bg-white/18 text-white font-semibold shadow-inner ring-1 ring-white/15"
-                      : "text-white/60 hover:bg-white/10 hover:text-white"
-                  }`}
-                  data-testid={`link-${item.title.toLowerCase()}`}
-                >
-                  <item.icon
-                    className={`w-4.5 h-4.5 shrink-0 transition-colors ${
-                      isActive ? "text-white" : "text-white/45 group-hover:text-white/80"
-                    }`}
-                    style={{ width: "1.1rem", height: "1.1rem" }}
-                  />
-                  <span className="text-sm flex-1">{item.title}</span>
-                  {isActive && (
-                    <ChevronRight className="w-3.5 h-3.5 text-white/50 shrink-0" />
-                  )}
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
+        <SidebarGroup className="flex-1">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      data-testid={`link-${item.title.toLowerCase()}`}
+                      className={
+                        isActive
+                          ? "bg-[#103360] text-white hover:bg-[#103360] hover:text-white font-semibold rounded-xl"
+                          : "text-muted-foreground hover:bg-[#103360]/10 hover:text-[#103360] rounded-xl transition-colors"
+                      }
+                    >
+                      <Link href={item.url} className="flex items-center gap-3 px-3 py-2.5">
+                        <item.icon
+                          className={`shrink-0 ${isActive ? "text-white" : "text-muted-foreground"}`}
+                          style={{ width: "1.1rem", height: "1.1rem" }}
+                        />
+                        <span className="text-sm">{item.title}</span>
+                        {isActive && (
+                          <ChevronRight className="ml-auto w-3.5 h-3.5 opacity-60 shrink-0" />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        {/* ── User info + Logout ── */}
-        <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-1">
+        {/* ── User + Logout ── */}
+        <SidebarGroup className="mt-auto border-t border-border pt-3 pb-2">
           {user && (
-            <div className="px-3 py-2.5 rounded-xl bg-white/5 mb-2">
-              <p className="text-white text-sm font-medium truncate leading-tight">
+            <div className="px-4 py-2 mb-1">
+              <p className="text-sm font-medium truncate leading-tight">
                 {(user as any).name || (user as any).username || (user as any).email || "User"}
               </p>
-              <p className="text-white/35 text-xs capitalize mt-0.5">
+              <p className="text-xs text-muted-foreground capitalize mt-0.5">
                 {(user as any).role || "Member"}
               </p>
             </div>
           )}
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:bg-red-500/15 hover:text-red-300 transition-all duration-150 text-sm cursor-pointer"
-          >
-            <LogOut className="shrink-0" style={{ width: "1rem", height: "1rem" }} />
-            <span>Logout</span>
-          </button>
-        </div>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={logout}
+                  className="text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400 rounded-xl transition-colors"
+                >
+                  <LogOut style={{ width: "1rem", height: "1rem" }} className="shrink-0" />
+                  <span className="text-sm">Logout</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
       </SidebarContent>
     </Sidebar>
   );
