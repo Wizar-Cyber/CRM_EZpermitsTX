@@ -62,32 +62,18 @@ export function AppSidebar() {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
+                    <Link
+                      href={item.url}
                       data-testid={`link-${item.title.toLowerCase()}`}
-                      className="p-0 rounded-xl"
-                      style={{ background: "none" }}
+                      data-active={isActive ? "true" : undefined}
+                      className="sidebar-nav-item"
                     >
-                      <Link
-                        href={item.url}
-                        className={[
-                          "flex items-center gap-3 px-3 py-2.5 w-full rounded-xl transition-all",
-                          isActive
-                            ? "bg-gradient-to-r from-[#103360] to-[#1565c0] text-white font-semibold"
-                            : "text-muted-foreground hover:bg-gradient-to-r hover:from-[#103360] hover:to-[#1565c0] hover:text-white",
-                        ].join(" ")}
-                      >
-                        <item.icon
-                          className="shrink-0"
-                          style={{ width: "1.1rem", height: "1.1rem" }}
-                        />
-                        <span className="text-sm">{item.title}</span>
-                        {isActive && (
-                          <ChevronRight className="ml-auto w-3.5 h-3.5 opacity-60 shrink-0" />
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
+                      <item.icon style={{ width: "1.1rem", height: "1.1rem", flexShrink: 0 }} />
+                      <span className="text-sm">{item.title}</span>
+                      {isActive && (
+                        <ChevronRight style={{ width: "0.875rem", height: "0.875rem", marginLeft: "auto", opacity: 0.6 }} />
+                      )}
+                    </Link>
                   </SidebarMenuItem>
                 );
               })}
