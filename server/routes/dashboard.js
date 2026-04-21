@@ -57,7 +57,7 @@ router.get("/v2", authenticate, async (req, res) => {
         SELECT
           l.*,
           CASE
-            WHEN l.consulta = 'red' THEN 'red'
+            WHEN l.consulta = 'red' OR LOWER(COALESCE(l.manual_classification, '')) = 'red' THEN 'red'
             WHEN LOWER(COALESCE(l.manual_classification, '')) IN ('green', 'yellow', 'blue')
               THEN LOWER(l.manual_classification)
             ELSE 'unclassified'
@@ -412,7 +412,7 @@ router.get("/v2/drilldown", authenticate, async (req, res) => {
         SELECT
           l.*,
           CASE
-            WHEN l.consulta = 'red' THEN 'red'
+            WHEN l.consulta = 'red' OR LOWER(COALESCE(l.manual_classification, '')) = 'red' THEN 'red'
             WHEN LOWER(COALESCE(l.manual_classification, '')) IN ('green', 'yellow', 'blue')
               THEN LOWER(l.manual_classification)
             ELSE 'unclassified'

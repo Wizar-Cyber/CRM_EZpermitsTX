@@ -67,7 +67,7 @@ export function AppSidebar() {
                       isActive={isActive}
                       tooltip={item.title}
                       data-testid={`link-${item.title.toLowerCase()}`}
-                      className="sidebar-nav-item rounded-xl"
+                      className={`sidebar-nav-item rounded-xl${isActive ? " sidebar-nav-active" : ""}`}
                     >
                       <Link href={item.url}>
                         <item.icon style={{ width: "1.1rem", height: "1.1rem" }} />
@@ -87,7 +87,7 @@ export function AppSidebar() {
         {/* ── User + Logout ── */}
         <SidebarGroup className="mt-auto border-t border-border pt-3 pb-2">
           {user && (
-            <div className="px-4 py-2 mb-1">
+            <div className="px-4 py-2 mb-1 group-data-[collapsible=icon]:hidden">
               <p className="text-sm font-medium truncate leading-tight">
                 {(user as any).name || (user as any).username || (user as any).email || "User"}
               </p>

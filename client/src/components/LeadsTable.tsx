@@ -283,7 +283,7 @@ export function LeadsTable() {
   const queryClient = useQueryClient(); 
 
   // pestañas de la página
-  const [pageTab, setPageTab] = useState<"activos" | "clasificados">("activos");
+  const [pageTab, setPageTab] = useState<"activos" | "clasificados" | "red">("activos");
 
   const statusColors = {
     GREEN: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
@@ -460,8 +460,15 @@ export function LeadsTable() {
 
   // === Pestañas por manual_classification (no depende de consulta)
   const MANUAL_SET = new Set(["green","yellow","blue"]);
-  const activeBase = leads.filter((l: any) => !MANUAL_SET.has(((l as any).manual_classification || "").toLowerCase()));
+  const RED_SET   = new Set(["red"]);
+  const activeBase     = leads.filter((l: any) => {
+    const mc = ((l as any).manual_classification || "").toLowerCase();
+    return !MANUAL_SET.has(mc) && !RED_SET.has(mc) && (l as any).consulta !== "red";
+  });
   const classifiedBase = leads.filter((l: any) => MANUAL_SET.has(((l as any).manual_classification || "").toLowerCase()));
+  const redBase        = leads.filter((l: any) =>
+    RED_SET.has(((l as any).manual_classification || "").toLowerCase()) || (l as any).consulta === "red"
+  );
 
   const sortAndFilter = (list: Lead[]) => {
     if (!list.length) return [];
@@ -492,6 +499,7 @@ export function LeadsTable() {
 
   const sortedLeads = useMemo(() => sortAndFilter(activeBase), [leads, sortField, sortDirection, searchTerm, colorFilter]);
   const sortedClassifiedLeads = useMemo(() => sortAndFilter(classifiedBase), [leads, sortField, sortDirection, searchTerm, colorFilter]);
+  const sortedRedLeads = useMemo(() => sortAndFilter(redBase), [leads, sortField, sortDirection, searchTerm, colorFilter]);
 
   const toggleSelectAll = (checked: boolean, list: Lead[]) =>
     setSelected(checked ? list.map((l) => l.case_number) : []);
@@ -823,6 +831,15 @@ export function LeadsTable() {
           <TabsTrigger value="clasificados" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
             Classified Leads
           </TabsTrigger>
+          <TabsTrigger value="red" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-sm flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-500 data-[state=active]:bg-white" />
+            Red Leads
+            {redBase.length > 0 && (
+              <span className="ml-1 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {redBase.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activos" className="space-y-4">
@@ -833,6 +850,11 @@ export function LeadsTable() {
         <TabsContent value="clasificados" className="space-y-4">
           <HeaderAndFilters list={sortedClassifiedLeads} />
           <Table list={sortedClassifiedLeads} />
+        </TabsContent>
+
+        <TabsContent value="red" className="space-y-4">
+          <HeaderAndFilters list={sortedRedLeads} />
+          <Table list={sortedRedLeads} />
         </TabsContent>
       </Tabs>
 

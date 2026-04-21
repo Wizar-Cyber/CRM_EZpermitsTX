@@ -178,26 +178,33 @@ leadsRouter.patch("/:case_number/manual_classification", async (req, res) => {
     const cleanCase = case_number.trim();
 
     // normaliza valor permitido
-    const allowed = [null, "green", "yellow", "blue"];
+    const allowed = [null, "green", "yellow", "blue", "red"];
     if (manual_classification !== null) {
       manual_classification = String(manual_classification).toLowerCase();
     }
     if (!allowed.includes(manual_classification)) {
       return res.status(400).json({
-        error: "manual_classification must be one of: 'green','yellow','blue', or null",
+        error: "manual_classification must be one of: 'green','yellow','blue','red', or null",
       });
     }
 
-    // Si se clasifica como green, registramos la fecha de clasificación
+    // Si se clasifica como green, registramos la fecha; si es red, sincronizamos consulta
     const classifiedAtExpr = manual_classification === "green"
       ? ", classified_at = COALESCE(classified_at, NOW())"
       : manual_classification === null
         ? ", classified_at = NULL"
         : "";
 
+    // Sincronizar campo consulta cuando se marca/desmarca como red
+    const consultaExpr = manual_classification === "red"
+      ? ", consulta = 'red'"
+      : manual_classification === null
+        ? ", consulta = NULL"
+        : "";
+
     const result = await pool.query(
       `UPDATE houston_311_bcv
-       SET manual_classification = $1${classifiedAtExpr}
+       SET manual_classification = $1${classifiedAtExpr}${consultaExpr}
        WHERE TRIM(case_number) = TRIM($2)`,
       [manual_classification, cleanCase]
     );

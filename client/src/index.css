@@ -416,7 +416,8 @@
   background: linear-gradient(to right, #103360, #1565c0) !important;
   color: white !important;
 }
-[data-sidebar="menu-button"].sidebar-nav-item[data-active="true"] {
+[data-sidebar="menu-button"].sidebar-nav-item[data-active="true"],
+[data-sidebar="menu-button"].sidebar-nav-item.sidebar-nav-active {
   background: linear-gradient(to right, #103360, #1565c0) !important;
   color: white !important;
   font-weight: 600;
