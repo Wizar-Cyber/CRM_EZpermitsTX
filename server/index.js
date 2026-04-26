@@ -159,6 +159,7 @@ app.listen(PORT, async () => {
         `SELECT case_number, assigned_route_id, current_state
            FROM houston_311_bcv
           WHERE contacted_at IS NULL
+            AND is_historical = FALSE
             AND current_state IN ('IN_DELIVERY', 'NO_RESPONSE')
             AND (
               (second_attempt_due_at IS NOT NULL AND second_attempt_due_at <= NOW())

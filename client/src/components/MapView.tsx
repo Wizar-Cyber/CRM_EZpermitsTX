@@ -295,8 +295,8 @@ export function MapView({ routeId }: { routeId?: string }) {
           </Button>
         </div>
       )}
-      <div className="flex flex-col md:flex-row h-full gap-4">
-      <Card className="md:w-[380px] w-full flex flex-col p-4 rounded-2xl">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 gap-4">
+      <Card className="md:w-[380px] w-full flex flex-col p-4 rounded-2xl min-h-0">
         <div className="mb-3">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <MapPin className="w-5 h-5 text-primary" />

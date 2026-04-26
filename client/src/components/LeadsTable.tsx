@@ -461,14 +461,19 @@ export function LeadsTable() {
   // === Pestañas por manual_classification (no depende de consulta)
   const MANUAL_SET = new Set(["green","yellow","blue"]);
   const RED_SET   = new Set(["red"]);
+  const isRedLead = (l: any) =>
+    RED_SET.has(((l as any).manual_classification || "").toLowerCase()) ||
+    (l as any).consulta === "red" ||
+    localStorage.getItem(`resolved_${l.case_number}`) === "true";
   const activeBase     = leads.filter((l: any) => {
     const mc = ((l as any).manual_classification || "").toLowerCase();
-    return !MANUAL_SET.has(mc) && !RED_SET.has(mc) && (l as any).consulta !== "red";
+    return !MANUAL_SET.has(mc) && !isRedLead(l);
   });
-  const classifiedBase = leads.filter((l: any) => MANUAL_SET.has(((l as any).manual_classification || "").toLowerCase()));
-  const redBase        = leads.filter((l: any) =>
-    RED_SET.has(((l as any).manual_classification || "").toLowerCase()) || (l as any).consulta === "red"
-  );
+  const classifiedBase = leads.filter((l: any) => {
+    const mc = ((l as any).manual_classification || "").toLowerCase();
+    return MANUAL_SET.has(mc) && !isRedLead(l);
+  });
+  const redBase = leads.filter((l: any) => isRedLead(l));
 
   const sortAndFilter = (list: Lead[]) => {
     if (!list.length) return [];

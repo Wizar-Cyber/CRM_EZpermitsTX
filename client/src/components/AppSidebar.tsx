@@ -24,7 +24,7 @@ import {
 import { useAuth } from "@/features/hooks/useAuth";
 
 const menuItems = [
-  { title: "Dashboard",    url: "/",               icon: LayoutDashboard },
+  { title: "Dashboard",    url: "/dashboard",      icon: LayoutDashboard },
   { title: "Leads",        url: "/leads",           icon: Users },
   { title: "Delivery",     url: "/leads-delivery",  icon: Truck },
   { title: "Clients",      url: "/clients",         icon: Shield },

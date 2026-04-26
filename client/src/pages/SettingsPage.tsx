@@ -23,7 +23,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPut, apiPatch, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from "@/lib/api";
 import { useAuth } from "@/features/hooks/useAuth";
 
 type UserRow = {
@@ -49,6 +49,33 @@ export default function SettingsPage() {
     sms_notifications: false,    // <- ya no se muestra en UI
     language: "en",
   });
+
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const handleUpdatePassword = async () => {
+    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+    try {
+      setPwLoading(true);
+      await apiPost("/auth/change-password", {
+        currentPassword: pwForm.current,
+        newPassword: pwForm.next,
+      });
+      toast.success("Password updated successfully");
+      setPwForm({ current: "", next: "", confirm: "" });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update password");
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   // 🔐 Detectar admin de forma robusta
   const isAdmin = useMemo(
@@ -364,19 +391,19 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input id="currentPassword" type="password" />
+                  <Input id="currentPassword" type="password" value={pwForm.current} onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })} />
                 </div>
                 <div>
                   <Label htmlFor="newPassword">New Password</Label>
-                  <Input id="newPassword" type="password" />
+                  <Input id="newPassword" type="password" value={pwForm.next} onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })} />
                 </div>
                 <div>
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input id="confirmPassword" type="password" />
+                  <Input id="confirmPassword" type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} />
                 </div>
               </div>
-              <Button className="mt-4 rounded-xl" disabled={loading}>
-                Update Password
+              <Button className="mt-4 rounded-xl" onClick={handleUpdatePassword} disabled={pwLoading}>
+                {pwLoading ? "Updating..." : "Update Password"}
               </Button>
             </div>
           </TabsContent>
@@ -433,7 +460,7 @@ export default function SettingsPage() {
                       Sync meetings and schedules.
                     </p>
                   </div>
-                  <Button variant="outline" className="rounded-xl">
+                  <Button variant="outline" className="rounded-xl" disabled title="Coming soon">
                     Connect
                   </Button>
                 </li>
@@ -445,7 +472,7 @@ export default function SettingsPage() {
                       Receive CRM notifications directly.
                     </p>
                   </div>
-                  <Button variant="outline" className="rounded-xl">
+                  <Button variant="outline" className="rounded-xl" disabled title="Coming soon">
                     Connect
                   </Button>
                 </li>
@@ -457,7 +484,7 @@ export default function SettingsPage() {
                       Enable message-based client interactions.
                     </p>
                   </div>
-                  <Button variant="outline" className="rounded-xl">
+                  <Button variant="outline" className="rounded-xl" disabled title="Coming soon">
                     Connect
                   </Button>
                 </li>

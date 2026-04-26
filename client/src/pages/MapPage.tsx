@@ -27,7 +27,7 @@ export default function MapPage() {
         </div>
       </div>
 
-      <div className="flex-1 h-[calc(100vh-10rem)] w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div className="flex-1 min-h-0 w-full rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-auto">
         <MapView routeId={routeId} />
       </div>
     </div>

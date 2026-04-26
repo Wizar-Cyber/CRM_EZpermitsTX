@@ -9,7 +9,7 @@ leadsRouter.get("/", async (req, res) => {
     const { q, status, filter, sort = "created_date_local", order = "desc" } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         case_number, incident_address, created_date_local, resolve_by_time,
         state_code_name, zip_code, created_date_utc, channel, extract_date,
         latest_case_notes, created_date, status, description, resolution,
@@ -17,7 +17,7 @@ leadsRouter.get("/", async (req, res) => {
         url, consulta, manual_classification,
         current_state, sent_to_delivery_date, second_attempt_due_at, assigned_route_id, contact_result
       FROM houston_311_bcv
-      WHERE 1=1
+      WHERE is_historical = FALSE
         AND NOT EXISTS (
           SELECT 1
             FROM clientes c
