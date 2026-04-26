@@ -65,7 +65,7 @@ export default function Dashboard() {
                   : "text-slate-300 hover:text-white"
               }`}
             >
-              {p === 0 ? "Todo" : `${p}d`}
+              {p === 0 ? "All" : `${p}d`}
             </button>
           ))}
         </div>
@@ -77,11 +77,11 @@ export default function Dashboard() {
           <TabsList className="bg-transparent p-0 h-auto gap-1">
             {[
               { value: "overview", label: "Overview" },
-              { value: "trends", label: "Tendencias" },
-              { value: "geographic", label: "Geográfico" },
+              { value: "trends", label: "Trends" },
+              { value: "geographic", label: "Geographic" },
               { value: "green-leads", label: "Green Leads → Route" },
               { value: "lead-quality", label: "Lead Quality" },
-              { value: "monthly", label: "Reporte Mensual" },
+              { value: "monthly", label: "Monthly Report" },
             ].map((t) => (
               <TabsTrigger
                 key={t.value}

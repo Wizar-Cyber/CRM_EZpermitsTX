@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   AreaChart,
   Area,
-  LineChart,
-  Line,
   BarChart,
   Bar,
   XAxis,
@@ -17,7 +15,6 @@ import type {
   QualityCategory,
   LeadQualityTrendsResponse,
   LeadQualityGeographyResponse,
-  LeadQualityBacklogResponse,
   LeadQualityPeaksResponse,
 } from '@/features/analytics/types';
 
@@ -30,13 +27,10 @@ interface LeadQualityDetailPanelProps {
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Lead': '#22c55e',
-  'In Follow-up': '#f59e0b',
-  'Other': '#3b82f6',
   'Discarded': '#ef4444',
-  'Unclassified': '#94a3b8',
 };
 
-type SubTab = 'trends' | 'geography' | 'backlog' | 'peaks';
+type SubTab = 'trends' | 'geography' | 'peaks';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -61,7 +55,6 @@ export function LeadQualityDetailPanel({
   const [subTab, setSubTab] = useState<SubTab>('trends');
   const [trendsData, setTrendsData] = useState<LeadQualityTrendsResponse['data'] | null>(null);
   const [geographyData, setGeographyData] = useState<LeadQualityGeographyResponse['data'] | null>(null);
-  const [backlogData, setBacklogData] = useState<LeadQualityBacklogResponse['metrics'] | null>(null);
   const [peaksData, setPeaksData] = useState<LeadQualityPeaksResponse['data'] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,19 +73,17 @@ export function LeadQualityDetailPanel({
           quality: selectedCategory,
         });
 
-        const [trends, geography, backlog, peaks] = await Promise.all([
+        const [trends, geography, peaks] = await Promise.all([
           apiGet(`/analytics/lead-quality?${params}&view=trends`) as Promise<LeadQualityTrendsResponse>,
           apiGet(`/analytics/lead-quality?${params}&view=geography`) as Promise<LeadQualityGeographyResponse>,
-          apiGet(`/analytics/lead-quality?${params}&view=backlog`) as Promise<LeadQualityBacklogResponse>,
           apiGet(`/analytics/lead-quality?${params}&view=peaks`) as Promise<LeadQualityPeaksResponse>,
         ]);
 
         if (trends.view === 'trends') setTrendsData(trends.data);
         if (geography.view === 'geography') setGeographyData(geography.data);
-        if (backlog.view === 'backlog') setBacklogData(backlog.metrics);
         if (peaks.view === 'peaks') setPeaksData(peaks.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al cargar los datos');
+        setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
         setIsLoading(false);
       }
@@ -112,8 +103,8 @@ export function LeadQualityDetailPanel({
   const formatPeriodLabel = (isoStr: string): string => {
     const d = new Date(isoStr);
     if (groupBy === 'year') return String(d.getUTCFullYear());
-    if (groupBy === 'month') return d.toLocaleDateString('es-ES', { month: 'short', timeZone: 'UTC' });
-    return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    if (groupBy === 'month') return d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   };
 
   const renderTrends = () => {
@@ -127,7 +118,7 @@ export function LeadQualityDetailPanel({
     }));
 
     if (chartData.length === 0) {
-      return <p className="text-sm text-slate-500 text-center py-12">Sin datos de tendencia.</p>;
+      return <p className="text-sm text-slate-500 text-center py-12">No trend data available.</p>;
     }
 
     const minWidth = Math.max(600, chartData.length * 70);
@@ -175,7 +166,7 @@ export function LeadQualityDetailPanel({
     const chartData = filtered.map((d) => ({ zip: d.zip_code, count: d.count }));
 
     if (chartData.length === 0) {
-      return <p className="text-sm text-slate-500 text-center py-12">Sin distribución geográfica.</p>;
+      return <p className="text-sm text-slate-500 text-center py-12">No geographic distribution data.</p>;
     }
 
     return (
@@ -198,47 +189,21 @@ export function LeadQualityDetailPanel({
     );
   };
 
-  const renderBacklog = () => {
-    if (!backlogData) return null;
-    const items = [
-      { label: 'Sin clasificar', value: backlogData.unclassified ?? 0 },
-      {
-        label: 'Días promedio clasificación',
-        value:
-          typeof backlogData.avg_classification_days === 'number'
-            ? backlogData.avg_classification_days.toFixed(1)
-            : 'N/A',
-      },
-      { label: 'Clasificados sin fecha', value: backlogData.classified_no_date ?? 0 },
-      { label: 'Clasificaciones tardías', value: backlogData.delayed_classification ?? 0 },
-    ];
-    return (
-      <div className="grid grid-cols-2 gap-4 py-4">
-        {items.map((it) => (
-          <div key={it.label} className="bg-slate-50 rounded-xl border border-slate-200 p-5">
-            <p className="text-3xl font-bold text-slate-900">{it.value}</p>
-            <p className="text-xs text-slate-500 mt-1">{it.label}</p>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   const renderPeaks = () => {
     if (!peaksData) return null;
     const filtered = peaksData.filter((d) => d.quality === selectedCategory).slice(0, 10);
     const chartData = filtered.map((d) => ({
-      date: new Date(d.date!).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+      date: new Date(d.date!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       count: d.count,
     }));
 
     if (chartData.length === 0) {
-      return <p className="text-sm text-slate-500 text-center py-12">Sin picos de volumen.</p>;
+      return <p className="text-sm text-slate-500 text-center py-12">No volume peaks found.</p>;
     }
 
     return (
       <>
-        <h3 className="text-[17px] font-bold text-slate-900 mb-6">Fechas con Mayor Volumen</h3>
+        <h3 className="text-[17px] font-bold text-slate-900 mb-6">Highest Volume Dates</h3>
         <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }} barCategoryGap="30%">
@@ -269,16 +234,15 @@ export function LeadQualityDetailPanel({
   };
 
   const tabs: { key: SubTab; label: string }[] = [
-    { key: 'trends', label: 'Tendencias' },
-    { key: 'geography', label: 'Geografía' },
-    { key: 'backlog', label: 'Backlog' },
-    { key: 'peaks', label: 'Picos' },
+    { key: 'trends', label: 'Trends' },
+    { key: 'geography', label: 'Geography' },
+    { key: 'peaks', label: 'Peaks' },
   ];
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8">
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <h2 className="text-2xl font-bold text-slate-800">Detalles de {selectedCategory}</h2>
+        <h2 className="text-2xl font-bold text-slate-800">Details: {selectedCategory}</h2>
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide border ${badgeBg}`}>
           {selectedCategory}
         </span>
@@ -304,18 +268,16 @@ export function LeadQualityDetailPanel({
       </div>
 
       {isLoading ? (
-        <div className="h-[300px] flex items-center justify-center text-slate-400 text-sm">Cargando...</div>
+        <div className="h-[300px] flex items-center justify-center text-slate-400 text-sm">Loading...</div>
       ) : error ? (
         <p className="text-red-600 text-sm">Error: {error}</p>
       ) : (
         <>
           {subTab === 'trends' && renderTrends()}
           {subTab === 'geography' && renderGeography()}
-          {subTab === 'backlog' && renderBacklog()}
           {subTab === 'peaks' && renderPeaks()}
         </>
       )}
-
     </div>
   );
 }

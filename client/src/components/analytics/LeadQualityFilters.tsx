@@ -27,17 +27,17 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
       {/* Header */}
       <div className="flex items-center gap-2 pb-4 border-b border-slate-200">
         <FilterIcon className="w-5 h-5 text-blue-600" />
-        <h3 className="text-lg font-bold text-slate-900">Filtros de Análisis</h3>
+        <h3 className="text-lg font-bold text-slate-900">Analysis Filters</h3>
       </div>
 
       {/* Date Range Section */}
       <div className="space-y-3">
         <h4 className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-semibold text-slate-600">
-          <CalendarDays className="w-3.5 h-3.5" /> Rango de Fechas
+          <CalendarDays className="w-3.5 h-3.5" /> Date Range
         </h4>
         <div className="space-y-2">
           <div>
-            <Label className="text-xs text-slate-600 mb-2 block">Desde</Label>
+            <Label className="text-xs text-slate-600 mb-2 block">From</Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -66,7 +66,7 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
           </div>
 
           <div>
-            <Label className="text-xs text-slate-600 mb-2 block">Hasta</Label>
+            <Label className="text-xs text-slate-600 mb-2 block">To</Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -99,7 +99,7 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
       {/* Grouping Section */}
       <div className="space-y-3 pt-2 border-t border-slate-200">
         <h4 className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-semibold text-slate-600">
-          <BarChart2 className="w-3.5 h-3.5" /> Agrupar por
+          <BarChart2 className="w-3.5 h-3.5" /> Group by
         </h4>
         <Select value={filters.groupBy} onValueChange={(value: 'day' | 'month' | 'year') => updateFilters({ groupBy: value })}>
           <SelectTrigger className="bg-gradient-to-r from-blue-50 to-slate-50 border-blue-200 text-slate-800 font-medium hover:bg-blue-100/50">
@@ -107,13 +107,13 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="day">
-              <span className="flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> Día</span>
+              <span className="flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> Day</span>
             </SelectItem>
             <SelectItem value="month">
-              <span className="flex items-center gap-2"><CalendarRange className="w-4 h-4" /> Mes</span>
+              <span className="flex items-center gap-2"><CalendarRange className="w-4 h-4" /> Month</span>
             </SelectItem>
             <SelectItem value="year">
-              <span className="flex items-center gap-2"><CalendarDays className="w-4 h-4" /> Año</span>
+              <span className="flex items-center gap-2"><CalendarDays className="w-4 h-4" /> Year</span>
             </SelectItem>
           </SelectContent>
         </Select>

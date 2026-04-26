@@ -105,7 +105,7 @@ export function LeadQualityDistribution() {
                       className={`mt-3 px-6 py-1.5 rounded-full border text-sm font-medium transition-colors active:scale-95 ${card.borderColor}`}
                       style={{ color: card.color }}
                     >
-                      Ver detalles
+                      View details
                     </button>
                   </div>
                 </div>

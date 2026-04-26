@@ -158,9 +158,9 @@ export function TrendsTab() {
       <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-2xl shadow-lg p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="text-white">
-            <h2 className="text-3xl font-bold tracking-tight">Tendencias Anuales</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Annual Trends</h2>
             <p className="text-blue-100 text-sm mt-2">
-              Selecciona los años a comparar — evolución mensual de leads
+              Select years to compare — monthly lead evolution
             </p>
           </div>
           {/* Year toggles */}
@@ -205,7 +205,7 @@ export function TrendsTab() {
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl shadow-md border border-blue-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] uppercase tracking-widest text-blue-600 font-bold">
-                🏆 Mejor mes {newestYear}
+                Top Month {newestYear}
               </p>
               <div className="text-2xl">📈</div>
             </div>
@@ -213,7 +213,7 @@ export function TrendsTab() {
               {bestNewest ? MONTH_NAMES[bestNewest.month - 1] : "—"}
             </p>
             <p className="text-sm text-blue-700 mt-2 font-medium">
-              {bestNewest ? `${bestNewest.new_leads} leads` : "Sin datos"}
+              {bestNewest ? `${bestNewest.new_leads} leads` : "No data"}
             </p>
           </div>
 
@@ -221,7 +221,7 @@ export function TrendsTab() {
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-md border border-orange-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] uppercase tracking-widest text-orange-600 font-bold">
-                  🏆 Mejor mes {prevYear}
+                  Top Month {prevYear}
                 </p>
                 <div className="text-2xl">📊</div>
               </div>
@@ -229,7 +229,7 @@ export function TrendsTab() {
                 {bestPrev ? MONTH_NAMES[bestPrev.month - 1] : "—"}
               </p>
               <p className="text-sm text-orange-700 mt-2 font-medium">
-                {bestPrev ? `${bestPrev.new_leads} leads` : "Sin datos"}
+                {bestPrev ? `${bestPrev.new_leads} leads` : "No data"}
               </p>
             </div>
           )}
@@ -245,7 +245,7 @@ export function TrendsTab() {
               <p className={`text-[11px] uppercase tracking-widest font-bold ${
                 yoyGrowth == null ? "text-slate-600" : Number(yoyGrowth) >= 0 ? "text-green-600" : "text-red-600"
               }`}>
-                📉 Crecimiento YoY
+                YoY Growth
               </p>
               <div className="text-2xl">{yoyGrowth == null ? "📊" : Number(yoyGrowth) >= 0 ? "📈" : "📉"}</div>
             </div>
@@ -267,8 +267,8 @@ export function TrendsTab() {
       <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h3 className="font-bold text-2xl text-slate-900">Comparativa de Leads</h3>
-            <p className="text-slate-500 text-sm mt-1">Evolución mensual de leads capturados</p>
+            <h3 className="font-bold text-2xl text-slate-900">Lead Comparison</h3>
+            <p className="text-slate-500 text-sm mt-1">Monthly evolution of captured leads</p>
           </div>
           <div className="flex gap-4 flex-wrap">
             {[...selectedYears].sort((a, b) => b - a).map((year) => {
@@ -293,7 +293,7 @@ export function TrendsTab() {
           <div className="h-80 flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 rounded-xl">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-3" />
-              <p className="text-slate-500 text-sm">Cargando datos...</p>
+              <p className="text-slate-500 text-sm">Loading data...</p>
             </div>
           </div>
         ) : (
@@ -352,17 +352,17 @@ export function TrendsTab() {
       {(dataMap[newestYear]?.length ?? 0) > 0 && (
         <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8 overflow-x-auto">
           <div className="mb-8">
-            <h3 className="font-bold text-2xl text-slate-900">Desglose Mensual {newestYear}</h3>
-            <p className="text-slate-500 text-sm mt-1">Análisis detallado de métricas por mes</p>
+            <h3 className="font-bold text-2xl text-slate-900">Monthly Breakdown {newestYear}</h3>
+            <p className="text-slate-500 text-sm mt-1">Detailed monthly metrics analysis</p>
           </div>
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b-2 border-blue-200 text-slate-700 font-bold">
               <tr>
-                <th className="px-6 py-4 rounded-tl-lg">📅 Mes</th>
-                <th className="px-6 py-4 text-right">📊 New Leads</th>
-                <th className="px-6 py-4 text-right">👥 Clientes</th>
-                <th className="px-6 py-4 text-right">📍 Visitas</th>
-                <th className="px-6 py-4 text-right">📈 Conv%</th>
+                <th className="px-6 py-4 rounded-tl-lg">Month</th>
+                <th className="px-6 py-4 text-right">New Leads</th>
+                <th className="px-6 py-4 text-right">Clients</th>
+                <th className="px-6 py-4 text-right">Visits</th>
+                <th className="px-6 py-4 text-right">Conv%</th>
                 {prevYear && (
                   <th className="px-6 py-4 text-right rounded-tr-lg">vs {prevYear}</th>
                 )}

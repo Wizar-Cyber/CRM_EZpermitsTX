@@ -78,7 +78,7 @@ const QUALITY_LABELS: Record<string, string> = {
   blue: "Blue",
   yellow: "Yellow",
   red: "Red",
-  unclassified: "Sin color",
+  unclassified: "No color",
 };
 
 // The 4 main colors always shown in legend order
@@ -116,7 +116,7 @@ function LeadQualityDonut({ data }: { data: LeadQualityItem[] }) {
       value: byName[key]?.value ?? 0,
     })),
     ...(byName["unclassified"]?.value
-      ? [{ key: "unclassified", label: "Sin color", color: QUALITY_COLORS.unclassified, value: byName["unclassified"].value }]
+      ? [{ key: "unclassified", label: "No color", color: QUALITY_COLORS.unclassified, value: byName["unclassified"].value }]
       : []),
   ];
 
@@ -232,9 +232,9 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
               <HelpCircle className="w-4 h-4 shrink-0" />
               <span>
                 <button className="font-semibold underline underline-offset-2">
-                  {metrics!.unclassified_leads} leads sin clasificar
+                  {metrics!.unclassified_leads} unclassified leads
                 </button>{" "}
-                requieren atención
+                require attention
               </span>
             </div>
           )}
@@ -242,7 +242,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
             <div className="flex-1 flex items-center gap-2 bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-2.5 text-sm">
               <RotateCcw className="w-4 h-4 shrink-0" />
               <span>
-                <strong>{metrics!.second_attempt_due} leads</strong> necesitan 2do intento hoy
+                <strong>{metrics!.second_attempt_due} leads</strong> need a 2nd attempt today
               </span>
             </div>
           )}
@@ -256,41 +256,41 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
           value={metrics?.total_leads ?? "—"}
           icon={<Users className="w-4 h-4" />}
           iconBg="bg-blue-50 text-blue-500"
-          subtitle="Leads totales en el sistema"
+          subtitle="Total leads in the system"
           sparkline={{ color: "#3b82f6", gradientId: "spk-total", data: [10, 20, 15, 30, 25, 45, 50] }}
         />
         <KpiCard
-          title="Sin Clasificar"
+          title="Unclassified"
           value={metrics?.unclassified_leads ?? "—"}
           icon={<HelpCircle className="w-4 h-4" />}
           iconBg="bg-amber-50 text-amber-500"
           alert={(metrics?.unclassified_leads ?? 0) > 0}
-          subtitle="Leads pendientes de clasificación"
+          subtitle="Pending classification"
           sparkline={{ color: "#ef4444", gradientId: "spk-unclass", data: [10, 15, 12, 25, 22, 35, 40] }}
         />
         <KpiCard
-          title="En Delivery"
+          title="In Delivery"
           value={metrics?.en_delivery ?? "—"}
           icon={<Send className="w-4 h-4" />}
           iconBg="bg-purple-50 text-purple-500"
-          subtitle="Leads enviados a delivery"
+          subtitle="Leads sent to delivery"
         />
         <KpiCard
-          title="Total Clientes"
+          title="Total Clients"
           value={metrics?.total_clients ?? "—"}
           icon={<UserCheck className="w-4 h-4" />}
           iconBg="bg-emerald-50 text-emerald-500"
-          subtitle="Clientes activos"
+          subtitle="Active clients"
         />
         <KpiCard
-          title="Próximas Citas"
+          title="Upcoming Appointments"
           value={metrics?.upcoming_appointments ?? "—"}
           icon={<Calendar className="w-4 h-4" />}
           iconBg="bg-amber-50 text-amber-500"
-          subtitle="Citas programadas"
+          subtitle="Scheduled appointments"
         />
         <KpiCard
-          title="Tasa de Conversión"
+          title="Conversion Rate"
           value={
             metrics?.conversion_rate != null
               ? `${metrics.conversion_rate.toFixed(1)}%`
@@ -302,19 +302,19 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
           sparkline={{ color: "#3b82f6", gradientId: "spk-conv", data: [20, 10, 30, 15, 25, 15, 20] }}
         />
         <KpiCard
-          title="Visitas Completadas"
+          title="Completed Visits"
           value={metrics?.completed_visits ?? "—"}
           icon={<CheckCircle2 className="w-4 h-4" />}
           iconBg="bg-emerald-50 text-emerald-500"
-          subtitle="En el período seleccionado"
+          subtitle="In the selected period"
         />
         <KpiCard
-          title="2do Intento Hoy"
+          title="2nd Attempt Today"
           value={metrics?.second_attempt_due ?? "—"}
           icon={<RotateCcw className="w-4 h-4" />}
           iconBg="bg-red-50 text-red-500"
           alert={(metrics?.second_attempt_due ?? 0) > 0}
-          subtitle="Requieren seguimiento hoy"
+          subtitle="Require follow-up today"
         />
       </div>
 
