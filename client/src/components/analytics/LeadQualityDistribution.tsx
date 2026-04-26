@@ -28,20 +28,6 @@ const QUALITY_CARDS: QualityCardConfig[] = [
     shadow: '0_8px_16px_rgba(34,197,94,0.4)',
   },
   {
-    label: 'In Follow-up',
-    color: '#f59e0b',
-    gradientFrom: 'from-amber-50',
-    borderColor: 'border-amber-400',
-    shadow: '0_8px_16px_rgba(245,158,11,0.4)',
-  },
-  {
-    label: 'Other',
-    color: '#3b82f6',
-    gradientFrom: 'from-blue-50',
-    borderColor: 'border-blue-400',
-    shadow: '0_8px_16px_rgba(59,130,246,0.4)',
-  },
-  {
     label: 'Discarded',
     color: '#ef4444',
     gradientFrom: 'from-red-50',
@@ -60,13 +46,12 @@ export function LeadQualityDistribution() {
   const counts = useMemo(() => {
     const summary: Record<QualityCategory, number> = {
       'Lead': 0,
-      'In Follow-up': 0,
-      'Other': 0,
       'Discarded': 0,
-      'Unclassified': 0,
     };
     overviewData?.distribution?.forEach((item) => {
-      summary[item.quality] = item.count;
+      if (item.quality === 'Lead' || item.quality === 'Discarded') {
+        summary[item.quality] = item.count;
+      }
     });
     return summary;
   }, [overviewData]);
@@ -91,7 +76,7 @@ export function LeadQualityDistribution() {
 
         <div className="lg:col-span-3 space-y-6">
           {/* Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {QUALITY_CARDS.map((card) => {
               const count = counts[card.label] ?? 0;
               const isActive = selectedCategory === card.label;

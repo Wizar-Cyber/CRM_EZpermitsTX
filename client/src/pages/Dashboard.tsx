@@ -7,7 +7,9 @@ import { GreenLeadsTab } from "@/components/dashboard/GreenLeadsTab";
 import { MonthlyTab } from "@/components/dashboard/MonthlyTab";
 import { LeadQualityDistribution } from "@/components/analytics/LeadQualityDistribution";
 
-type Preset = 7 | 30 | 90;
+type Preset = 7 | 30 | 90 | 0; // 0 = All Time (since Sep 2025)
+
+const HISTORICAL_START = new Date("2025-09-01T00:00:00");
 
 function startOfDay(d: Date): Date {
   const copy = new Date(d);
@@ -34,11 +36,15 @@ export default function Dashboard() {
 
   const handlePreset = (days: Preset) => {
     setActivePreset(days);
-    setStart(daysAgo(days));
+    if (days === 0) {
+      setStart(HISTORICAL_START);
+    } else {
+      setStart(daysAgo(days));
+    }
     setEnd(endOfDay(new Date()));
   };
 
-  const presets: Preset[] = [7, 30, 90];
+  const presets: Preset[] = [7, 30, 90, 0];
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] -m-4 md:-m-6 font-sans text-slate-800">
@@ -59,7 +65,7 @@ export default function Dashboard() {
                   : "text-slate-300 hover:text-white"
               }`}
             >
-              {p}d
+              {p === 0 ? "Todo" : `${p}d`}
             </button>
           ))}
         </div>

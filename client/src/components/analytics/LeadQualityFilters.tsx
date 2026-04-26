@@ -15,7 +15,7 @@ interface LeadQualityFiltersProps {
   onFiltersChange: (filters: LeadQualityFilters) => void;
 }
 
-const QUALITY_OPTIONS: QualityCategory[] = ['Lead', 'In Follow-up', 'Other', 'Discarded', 'Unclassified'];
+const QUALITY_OPTIONS: QualityCategory[] = ['Lead', 'Discarded'];
 
 export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQualityFiltersProps) {
   const [dateFromOpen, setDateFromOpen] = useState(false);
@@ -128,10 +128,7 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
           {QUALITY_OPTIONS.map((quality) => {
             const categoryEmojis: Record<QualityCategory, string> = {
               'Lead': '✅',
-              'In Follow-up': '⏳',
-              'Other': '📌',
               'Discarded': '❌',
-              'Unclassified': '❓',
             };
             const categoryStyles: Record<QualityCategory, { accent: string; bg: string; border: string; text: string }> = {
               'Lead': {
@@ -140,29 +137,11 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
                 border: 'border-l-4 border-green-600',
                 text: 'text-green-900'
               },
-              'In Follow-up': {
-                accent: 'accent-amber-600',
-                bg: 'bg-amber-50/60',
-                border: 'border-l-4 border-amber-600',
-                text: 'text-amber-900'
-              },
-              'Other': {
-                accent: 'accent-blue-600',
-                bg: 'bg-blue-50/60',
-                border: 'border-l-4 border-blue-600',
-                text: 'text-blue-900'
-              },
               'Discarded': {
                 accent: 'accent-red-600',
                 bg: 'bg-red-50/60',
                 border: 'border-l-4 border-red-600',
                 text: 'text-red-900'
-              },
-              'Unclassified': {
-                accent: 'accent-slate-600',
-                bg: 'bg-slate-50/60',
-                border: 'border-l-4 border-slate-600',
-                text: 'text-slate-900'
               },
             };
             const style = categoryStyles[quality];

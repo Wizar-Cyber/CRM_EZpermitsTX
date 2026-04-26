@@ -107,13 +107,7 @@ export function LeadQualityDetailPanel({
   const badgeBg =
     selectedCategory === 'Lead'
       ? 'bg-[#eaf4eb] text-[#2e7d32] border-[#a3d8a7]/50'
-      : selectedCategory === 'In Follow-up'
-      ? 'bg-amber-50 text-amber-700 border-amber-200'
-      : selectedCategory === 'Other'
-      ? 'bg-blue-50 text-blue-700 border-blue-200'
-      : selectedCategory === 'Discarded'
-      ? 'bg-red-50 text-red-700 border-red-200'
-      : 'bg-slate-100 text-slate-700 border-slate-200';
+      : 'bg-red-50 text-red-700 border-red-200';
 
   const renderTrends = () => {
     if (!trendsData) return null;
@@ -311,7 +305,7 @@ export function LeadQualityDetailPanel({
 
       {/* Legend strip */}
       <div className="flex justify-center items-center mt-6 flex-wrap gap-6">
-        {(['Lead', 'In Follow-up', 'Other', 'Discarded'] as const).map((cat) => (
+        {(['Lead', 'Discarded'] as const).map((cat) => (
           <div key={cat} className="flex items-center text-sm text-slate-700 font-medium">
             <span
               className="w-4 h-[2px] rounded-sm mr-2"

@@ -1,4 +1,4 @@
-export type QualityCategory = 'Lead' | 'In Follow-up' | 'Other' | 'Discarded' | 'Unclassified';
+export type QualityCategory = 'Lead' | 'Discarded';
 
 export interface LeadQualityData {
   period?: string;
@@ -56,8 +56,5 @@ export interface LeadQualityFilters {
 
 export const QUALITY_COLORS: Record<QualityCategory, string> = {
   'Lead': '#22c55e',
-  'In Follow-up': '#f59e0b',
-  'Other': '#3b82f6',
   'Discarded': '#ef4444',
-  'Unclassified': '#6b7280'
 };

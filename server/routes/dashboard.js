@@ -63,7 +63,8 @@ router.get("/v2", authenticate, async (req, res) => {
             ELSE 'unclassified'
           END AS quality_bucket
         FROM houston_311_bcv l
-        WHERE ($4::text IS NULL OR UPPER(COALESCE(l.current_state, 'NEW')) = $4::text)
+        WHERE l.is_historical = FALSE
+          AND ($4::text IS NULL OR UPPER(COALESCE(l.current_state, 'NEW')) = $4::text)
           AND (
             $3::text = 'all'
             OR ($3::text = 'red' AND l.consulta = 'red')
@@ -419,7 +420,8 @@ router.get("/v2/drilldown", authenticate, async (req, res) => {
           END AS quality_bucket
         FROM houston_311_bcv l
         CROSS JOIN typed_params p
-        WHERE (p.state_filter IS NULL OR UPPER(COALESCE(l.current_state, 'NEW')) = p.state_filter)
+        WHERE l.is_historical = FALSE
+          AND (p.state_filter IS NULL OR UPPER(COALESCE(l.current_state, 'NEW')) = p.state_filter)
           AND (
             p.classification_filter = 'all'
             OR (p.classification_filter = 'red' AND l.consulta = 'red')
