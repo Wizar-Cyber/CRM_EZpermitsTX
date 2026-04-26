@@ -30,8 +30,8 @@ function daysAgo(n: number): Date {
 }
 
 export default function Dashboard() {
-  const [activePreset, setActivePreset] = useState<Preset>(30);
-  const [start, setStart] = useState<Date>(() => daysAgo(30));
+  const [activePreset, setActivePreset] = useState<Preset>(0);
+  const [start, setStart] = useState<Date>(() => HISTORICAL_START);
   const [end, setEnd] = useState<Date>(() => endOfDay(new Date()));
 
   const handlePreset = (days: Preset) => {
