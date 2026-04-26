@@ -1,21 +1,18 @@
 import { useState } from 'react';
-import { CalendarIcon, FilterIcon, ChevronDown } from 'lucide-react';
+import { CalendarIcon, FilterIcon, ChevronDown, BarChart2, CalendarDays, CalendarRange } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { LeadQualityFilters, QualityCategory } from '@/features/analytics/types';
+import type { LeadQualityFilters } from '@/features/analytics/types';
 
 interface LeadQualityFiltersProps {
   filters: LeadQualityFilters;
   onFiltersChange: (filters: LeadQualityFilters) => void;
 }
-
-const QUALITY_OPTIONS: QualityCategory[] = ['Lead', 'Discarded'];
 
 export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQualityFiltersProps) {
   const [dateFromOpen, setDateFromOpen] = useState(false);
@@ -23,14 +20,6 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
 
   const updateFilters = (updates: Partial<LeadQualityFilters>) => {
     onFiltersChange({ ...filters, ...updates });
-  };
-
-  const toggleQuality = (quality: QualityCategory) => {
-    const current = filters.quality || [];
-    const updated = current.includes(quality)
-      ? current.filter(q => q !== quality)
-      : [...current, quality];
-    updateFilters({ quality: updated.length > 0 ? updated : undefined });
   };
 
   return (
@@ -43,9 +32,10 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
 
       {/* Date Range Section */}
       <div className="space-y-3">
-        <h4 className="text-xs uppercase tracking-widest font-semibold text-slate-600">📅 Rango de Fechas</h4>
+        <h4 className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-semibold text-slate-600">
+          <CalendarDays className="w-3.5 h-3.5" /> Rango de Fechas
+        </h4>
         <div className="space-y-2">
-          {/* Date From */}
           <div>
             <Label className="text-xs text-slate-600 mb-2 block">Desde</Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
@@ -75,7 +65,6 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
             </Popover>
           </div>
 
-          {/* Date To */}
           <div>
             <Label className="text-xs text-slate-600 mb-2 block">Hasta</Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
@@ -109,65 +98,25 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
 
       {/* Grouping Section */}
       <div className="space-y-3 pt-2 border-t border-slate-200">
-        <h4 className="text-xs uppercase tracking-widest font-semibold text-slate-600">📊 Agrupar por</h4>
+        <h4 className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-semibold text-slate-600">
+          <BarChart2 className="w-3.5 h-3.5" /> Agrupar por
+        </h4>
         <Select value={filters.groupBy} onValueChange={(value: 'day' | 'month' | 'year') => updateFilters({ groupBy: value })}>
           <SelectTrigger className="bg-gradient-to-r from-blue-50 to-slate-50 border-blue-200 text-slate-800 font-medium hover:bg-blue-100/50">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="day">📅 Día</SelectItem>
-            <SelectItem value="month">📆 Mes</SelectItem>
-            <SelectItem value="year">📅 Año</SelectItem>
+            <SelectItem value="day">
+              <span className="flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> Día</span>
+            </SelectItem>
+            <SelectItem value="month">
+              <span className="flex items-center gap-2"><CalendarRange className="w-4 h-4" /> Mes</span>
+            </SelectItem>
+            <SelectItem value="year">
+              <span className="flex items-center gap-2"><CalendarDays className="w-4 h-4" /> Año</span>
+            </SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Quality Categories Section */}
-      <div className="space-y-3 pt-2 border-t border-slate-200">
-        <h4 className="text-xs uppercase tracking-widest font-semibold text-slate-600">🏷️ Categorías</h4>
-        <div className="space-y-2.5">
-          {QUALITY_OPTIONS.map((quality) => {
-            const categoryEmojis: Record<QualityCategory, string> = {
-              'Lead': '✅',
-              'Discarded': '❌',
-            };
-            const categoryStyles: Record<QualityCategory, { accent: string; bg: string; border: string; text: string }> = {
-              'Lead': {
-                accent: 'accent-green-600',
-                bg: 'bg-green-50/60',
-                border: 'border-l-4 border-green-600',
-                text: 'text-green-900'
-              },
-              'Discarded': {
-                accent: 'accent-red-600',
-                bg: 'bg-red-50/60',
-                border: 'border-l-4 border-red-600',
-                text: 'text-red-900'
-              },
-            };
-            const style = categoryStyles[quality];
-            return (
-              <div
-                key={quality}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${style.bg} ${style.border} hover:shadow-md hover:scale-102`}
-              >
-                <Checkbox
-                  id={quality}
-                  checked={filters.quality?.includes(quality) ?? false}
-                  onCheckedChange={() => toggleQuality(quality)}
-                  className={style.accent}
-                />
-                <label
-                  htmlFor={quality}
-                  className={`text-sm font-semibold cursor-pointer flex items-center gap-2 flex-1 ${style.text}`}
-                >
-                  <span>{categoryEmojis[quality]}</span>
-                  {quality}
-                </label>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
