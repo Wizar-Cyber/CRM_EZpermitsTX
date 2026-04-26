@@ -110,13 +110,14 @@ export function LeadQualityFilterPanel({ filters, onFiltersChange }: LeadQuality
       {/* Grouping Section */}
       <div className="space-y-3 pt-2 border-t border-slate-200">
         <h4 className="text-xs uppercase tracking-widest font-semibold text-slate-600">📊 Agrupar por</h4>
-        <Select value={filters.groupBy} onValueChange={(value: 'day' | 'month') => updateFilters({ groupBy: value })}>
+        <Select value={filters.groupBy} onValueChange={(value: 'day' | 'month' | 'year') => updateFilters({ groupBy: value })}>
           <SelectTrigger className="bg-gradient-to-r from-blue-50 to-slate-50 border-blue-200 text-slate-800 font-medium hover:bg-blue-100/50">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="day">📅 Día</SelectItem>
             <SelectItem value="month">📆 Mes</SelectItem>
+            <SelectItem value="year">📅 Año</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -7,7 +7,6 @@ import {
   LogOut,
   Users,
   Truck,
-  Shield,
   ChevronRight,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -45,8 +44,8 @@ export function AppSidebar() {
         {/* ── Logo ── */}
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-2 py-4 px-2">
-            <div className="w-7 h-7 rounded-lg bg-[#103360] flex items-center justify-center shrink-0">
-              <Shield className="w-4 h-4 text-white" />
+            <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0">
+              <img src="/EZPermitsLOgo.png" alt="EZpermitsTX" className="w-full h-full object-contain" />
             </div>
             <span className="text-base font-bold text-[#103360] dark:text-white tracking-wide">
               EZpermitsTX

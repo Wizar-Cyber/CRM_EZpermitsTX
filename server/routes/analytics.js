@@ -13,8 +13,8 @@ const validateAnalyticsQuery = (req, res, next) => {
   if (date_to && isNaN(Date.parse(date_to))) {
     return res.status(400).json({ error: "Invalid date_to format" });
   }
-  if (group_by && !['day', 'month'].includes(group_by)) {
-    return res.status(400).json({ error: "group_by must be 'day' or 'month'" });
+  if (group_by && !['day', 'month', 'year'].includes(group_by)) {
+    return res.status(400).json({ error: "group_by must be 'day', 'month', or 'year'" });
   }
 
   next();

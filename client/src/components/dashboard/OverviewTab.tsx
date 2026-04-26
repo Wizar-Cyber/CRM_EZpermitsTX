@@ -341,7 +341,8 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
             </div>
           </div>
 
-          <div className="h-[300px] w-full">
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: Math.max(600, (chartData?.length ?? 0) * 60), height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
@@ -399,6 +400,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           <div className="flex justify-center items-center mt-6 space-x-6 flex-wrap">

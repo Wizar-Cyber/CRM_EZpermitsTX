@@ -50,7 +50,7 @@ export interface LeadQualityFilters {
   dateFrom: Date;
   dateTo: Date;
   quality?: QualityCategory[];
-  groupBy: 'day' | 'month';
+  groupBy: 'day' | 'month' | 'year';
   view: 'overview' | 'trends' | 'geography' | 'backlog' | 'peaks';
 }
 

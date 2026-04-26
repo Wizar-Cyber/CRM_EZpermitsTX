@@ -25,7 +25,7 @@ interface LeadQualityDetailPanelProps {
   selectedCategory: QualityCategory | null;
   dateFrom: Date;
   dateTo: Date;
-  groupBy: 'day' | 'month';
+  groupBy: 'day' | 'month' | 'year';
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -109,11 +109,20 @@ export function LeadQualityDetailPanel({
       ? 'bg-[#eaf4eb] text-[#2e7d32] border-[#a3d8a7]/50'
       : 'bg-red-50 text-red-700 border-red-200';
 
+  const formatPeriodLabel = (isoStr: string): string => {
+    const d = new Date(isoStr);
+    if (groupBy === 'year') return String(d.getUTCFullYear());
+    if (groupBy === 'month') return d.toLocaleDateString('es-ES', { month: 'short', timeZone: 'UTC' });
+    return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  };
+
   const renderTrends = () => {
     if (!trendsData) return null;
-    const filtered = trendsData.filter((d) => d.quality === selectedCategory);
+    const filtered = trendsData
+      .filter((d) => d.quality === selectedCategory)
+      .sort((a, b) => new Date(a.period!).getTime() - new Date(b.period!).getTime());
     const chartData = filtered.map((d) => ({
-      period: new Date(d.period!).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+      period: formatPeriodLabel(d.period!),
       count: d.count,
     }));
 
@@ -121,37 +130,41 @@ export function LeadQualityDetailPanel({
       return <p className="text-sm text-slate-500 text-center py-12">Sin datos de tendencia.</p>;
     }
 
+    const minWidth = Math.max(600, chartData.length * 70);
+
     return (
-      <div className="h-[400px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="detailColor" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} stroke="#e2e8f0" />
-            <XAxis
-              dataKey="period"
-              axisLine={{ stroke: '#cbd5e1' }}
-              tickLine={false}
-              tick={{ fill: '#64748b', fontSize: 13 }}
-              dy={10}
-            />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 13 }} dx={-10} />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
-            <Area
-              type="monotone"
-              dataKey="count"
-              name={selectedCategory}
-              stroke={color}
-              strokeWidth={2}
-              fill="url(#detailColor)"
-              activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+      <div className="overflow-x-auto">
+        <div style={{ minWidth, height: 400 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="detailColor" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={color} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#e2e8f0" />
+              <XAxis
+                dataKey="period"
+                axisLine={{ stroke: '#cbd5e1' }}
+                tickLine={false}
+                tick={{ fill: '#64748b', fontSize: 13 }}
+                dy={10}
+              />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 13 }} dx={-10} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
+              <Area
+                type="monotone"
+                dataKey="count"
+                name={selectedCategory}
+                stroke={color}
+                strokeWidth={2}
+                fill="url(#detailColor)"
+                activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
   };
@@ -303,18 +316,6 @@ export function LeadQualityDetailPanel({
         </>
       )}
 
-      {/* Legend strip */}
-      <div className="flex justify-center items-center mt-6 flex-wrap gap-6">
-        {(['Lead', 'Discarded'] as const).map((cat) => (
-          <div key={cat} className="flex items-center text-sm text-slate-700 font-medium">
-            <span
-              className="w-4 h-[2px] rounded-sm mr-2"
-              style={{ backgroundColor: CATEGORY_COLORS[cat] }}
-            />{' '}
-            {cat}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
