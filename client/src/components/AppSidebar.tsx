@@ -7,6 +7,7 @@ import {
   LogOut,
   Users,
   Truck,
+  Shield,
   ChevronRight,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
