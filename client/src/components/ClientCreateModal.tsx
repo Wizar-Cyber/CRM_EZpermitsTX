@@ -94,85 +94,130 @@ export function ClientCreateModal({ open, onOpenChange, clientData, onSuccess = 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-[500px]"
+        className="sm:max-w-[500px] border-border/50"
         onOpenAutoFocus={(e: Event) => e.preventDefault()}
         onCloseAutoFocus={(e: Event) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">Add Client</DialogTitle>
-          <DialogDescription>
-            Create a new client record, pre-filled from Lead #{clientData.case_number}.
+        <DialogHeader className="border-b border-border/50 pb-4">
+          <DialogTitle className="text-2xl font-bold tracking-tight">👤 Add Client</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground mt-2">
+            Create a new client record from Lead #{clientData.case_number}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={(e) => e.preventDefault()}>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Full name (Required)"
-              value={client.fullname}
-              onChange={(e) => setClient({ ...client, fullname: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-              required
-            />
-            <Input
-              placeholder="Email"
-              type="email"
-              value={client.email}
-              onChange={(e) => setClient({ ...client, email: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-            <Input
-              placeholder="Phone"
-              type="tel"
-              value={client.phone}
-              onChange={(e) => setClient({ ...client, phone: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-            <Input
-              placeholder="Address"
-              value={client.address}
-              onChange={(e) => setClient({ ...client, address: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-            <Input
-              placeholder="Source"
-              value={client.source}
-              onChange={(e) => setClient({ ...client, source: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-
-            <div className="flex items-center gap-2">
+          <div className="grid gap-4 py-5">
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">👤 Full Name *</label>
               <Input
-                placeholder="Case number"
-                value={client.case_number}
-                onChange={(e) => setClient({ ...client, case_number: e.target.value })}
+                placeholder="Enter full name"
+                value={client.fullname}
+                onChange={(e) => setClient({ ...client, fullname: e.target.value })}
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                required
+                className="border-border/60"
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleValidateCase}
-                disabled={isLoading || !client.case_number.trim()}
-              >
-                {isLoading ? "Validating..." : "Validate"}
-              </Button>
             </div>
 
-            <Textarea
-              placeholder="Description / Case Info (loaded from Lead or Case validation)"
-              value={client.description}
-              onChange={(e) => setClient({ ...client, description: e.target.value })}
-              className="bg-muted text-foreground min-h-[100px]"
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">📧 Email</label>
+                <Input
+                  placeholder="email@example.com"
+                  type="email"
+                  value={client.email}
+                  onChange={(e) => setClient({ ...client, email: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  className="border-border/60"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">📱 Phone</label>
+                <Input
+                  placeholder="+1 (555) 000-0000"
+                  type="tel"
+                  value={client.phone}
+                  onChange={(e) => setClient({ ...client, phone: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  className="border-border/60"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">📍 Address</label>
+              <Input
+                placeholder="Street address"
+                value={client.address}
+                onChange={(e) => setClient({ ...client, address: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                className="border-border/60"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">🔗 Source</label>
+              <Input
+                placeholder="Lead source"
+                value={client.source}
+                onChange={(e) => setClient({ ...client, source: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                className="border-border/60"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block"># Case Number</label>
+                <Input
+                  placeholder="Case #"
+                  value={client.case_number}
+                  onChange={(e) => setClient({ ...client, case_number: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  className="border-border/60"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block"># Case Number</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Case #"
+                    value={client.case_number}
+                    onChange={(e) => setClient({ ...client, case_number: e.target.value })}
+                    onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                    className="border-border/60 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleValidateCase}
+                    disabled={isLoading || !client.case_number.trim()}
+                    className="text-xs"
+                  >
+                    {isLoading ? "Validating..." : "Validate"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">📝 Description / Case Info</label>
+              <Textarea
+                placeholder="Details loaded from Lead or Case validation"
+                value={client.description}
+                onChange={(e) => setClient({ ...client, description: e.target.value })}
+                className="bg-slate-50 dark:bg-slate-900/30 text-foreground min-h-[100px] border-border/60"
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+              />
+            </div>
           </div>
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-6 pt-4 border-t border-border/50 flex justify-between items-center">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>
             <Button type="button" onClick={handleSubmit} disabled={isLoading || !client.fullname.trim()}>
-              <Save className="w-4 h-4 mr-1" /> {isLoading ? "Saving..." : "Save Client"}
+              <Save className="w-4 h-4 mr-2" /> {isLoading ? "Saving..." : "Save Client"}
             </Button>
           </DialogFooter>
         </form>

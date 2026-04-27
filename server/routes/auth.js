@@ -301,6 +301,18 @@ router.post(
         [user.id]
       ).catch(() => {});
 
+      writeAuditEvent({
+        actorUserId: user.id,
+        targetUserId: user.id,
+        action: 'auth.login',
+        entity: 'user_sessions',
+        entityId: sessionId,
+        metadata: {
+          ip: getRequestIp(req),
+          user_agent: req.headers['user-agent'] || null,
+        },
+      }).catch(() => {});
+
       return res.json({
         message: 'Login successful',
         token,

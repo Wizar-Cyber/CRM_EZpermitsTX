@@ -271,7 +271,7 @@ export default function ClientsPage() {
                     <div
                       {...provided.droppableProps}
                       ref={provided.innerRef}
-                      className={`${colConfig.colBg} border ${colConfig.border} rounded-2xl w-72 min-h-[65vh] shadow-sm overflow-hidden`}
+                      className={`${colConfig.colBg} border ${colConfig.border} rounded-2xl w-80 md:w-72 flex-shrink-0 min-h-[65vh] shadow-sm overflow-hidden`}
                     >
                       {/* Column Header */}
                       <div className={`${colConfig.headerBg} px-4 py-3 flex items-center justify-between`}>
@@ -343,13 +343,13 @@ export default function ClientsPage() {
       {/* ---------- CLIENT DETAILS MODAL ---------- */}
       {selected && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelected(null);
           }}
         >
           <div
-            className="bg-card border border-border rounded-2xl shadow-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto relative"
+            className="bg-card border border-border/50 rounded-2xl shadow-2xl p-6 w-[90vw] lg:w-[700px] max-h-[90vh] overflow-y-auto relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -359,17 +359,17 @@ export default function ClientsPage() {
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-xl font-bold tracking-tight mb-1">{selected.fullname}</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              {selected.email || "-"} • {selected.phone || "-"}
-            </p>
-
-            <div className="space-y-2 mb-4">
-              <p className="text-sm"><strong>Address:</strong> {selected.address || "-"}</p>
+            <div className="mb-4 pb-4 border-b border-border/50">
+              <h2 className="text-2xl font-bold tracking-tight mb-2">{selected.fullname}</h2>
+              <div className="flex flex-wrap gap-3 items-center text-sm text-muted-foreground">
+                {selected.email && <span className="flex items-center gap-1">📧 {selected.email}</span>}
+                {selected.phone && <span className="flex items-center gap-1">📱 {selected.phone}</span>}
+              </div>
+              {selected.address && <p className="text-sm mt-2">📍 {selected.address}</p>}
               {selected.case_number && (
-                <div className="mt-2 p-3 bg-muted/50 rounded-lg border border-border/60">
-                  <p className="font-semibold text-sm">Case #: {selected.case_number}</p>
-                  <p className="text-sm text-muted-foreground">{selected.description}</p>
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
+                  <p className="font-semibold text-sm text-blue-900 dark:text-blue-100">Case #: {selected.case_number}</p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">{selected.description}</p>
                 </div>
               )}
             </div>
@@ -377,9 +377,9 @@ export default function ClientsPage() {
             <hr className="my-4 border-border" />
 
             {/* Notes */}
-            <div className="mt-4 border-t border-border pt-3">
-              <h4 className="font-medium mb-2 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" /> Notes
+            <div className="mt-4 border-t border-border pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2 text-base">
+                <MessageSquare className="w-5 h-5 text-slate-600 dark:text-slate-400" /> Notes
               </h4>
 
               <div className="flex gap-2 mb-3">
@@ -398,7 +398,7 @@ export default function ClientsPage() {
                   notes.map((n) => (
                     <div
                       key={n.id}
-                      className="p-2.5 bg-muted/40 border border-border/50 rounded-lg text-sm flex justify-between items-start"
+                      className="p-3 bg-muted/30 border border-border/50 rounded-lg text-sm flex justify-between items-start hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex-1 mr-2">
                         {editingNoteId === n.id ? (
@@ -460,26 +460,27 @@ export default function ClientsPage() {
             </div>
 
             {/* Appointments */}
-            <hr className="my-4" />
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold flex items-center gap-2">
-                <CalendarPlus className="w-4 h-4" /> Appointments
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAppointmentModal(true)}
-              >
-                + Add Appointment
-              </Button>
-            </div>
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <CalendarPlus className="w-5 h-5 text-slate-600 dark:text-slate-400" /> Appointments
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAppointmentModal(true)}
+                  className="text-xs"
+                >
+                  + Add
+                </Button>
+              </div>
 
             {appointments.length > 0 ? (
               <div className="space-y-2">
                 {appointments.map((a) => (
                   <Card
                     key={a.id}
-                    className="p-3 cursor-pointer hover:bg-muted/50 transition-colors border-border/60"
+                    className="p-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border-border/60 bg-slate-50 dark:bg-slate-900/30"
                     onClick={() =>
                       (window.location.href = `/appointments?id=${a.id}`)
                     }
@@ -503,28 +504,29 @@ export default function ClientsPage() {
             ) : (
               <p className="text-sm text-muted-foreground/50">No appointments yet</p>
             )}
+            </div>
 
             {/* Events */}
             {events.length > 0 && (
               <>
-                <hr className="my-4" />
-                <h3 className="font-semibold flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4" /> Events
+                <div className="mt-4 border-t border-border pt-4">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <CalendarDays className="w-5 h-5 text-slate-600 dark:text-slate-400" /> Events
                 </h3>
                 <div className="mt-2 space-y-3">
                   {events.map((e) => (
                     <Card
                       key={e.id}
-                      className="p-3 border-l-4 border-primary/60"
+                      className="p-3 border-l-4 border-primary/60 bg-amber-50 dark:bg-amber-950/20"
                     >
-                      <p className="text-sm">{e.descripcion}</p>
-                      <small className="text-muted-foreground/70">
-                        {e.author_name} •{" "}
-                        {new Date(e.fecha).toLocaleString()}
+                      <p className="text-sm text-slate-800 dark:text-slate-200">{e.descripcion}</p>
+                      <small className="text-muted-foreground/70 block mt-1">
+                        {e.author_name} • {new Date(e.fecha).toLocaleString()}
                       </small>
                     </Card>
                   ))}
                 </div>
+              </div>
               </>
             )}
 
@@ -610,68 +612,110 @@ function ClientModal({ onClose, onSuccess }: any) {
     <div
       id="overlay"
       onClick={handleOverlayClick}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
     >
       <div
-        className="bg-card border border-border rounded-2xl shadow-xl w-[500px] p-6"
+        className="bg-card border border-border/50 rounded-2xl shadow-2xl w-[90vw] lg:w-[500px] p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-semibold mb-4">Add Client</h2>
+        <div className="mb-5 pb-4 border-b border-border/50">
+          <h2 className="text-2xl font-bold tracking-tight">👤 Add Client</h2>
+          <p className="text-sm text-muted-foreground mt-2">Create a new client record in the system</p>
+        </div>
 
-        <div className="grid gap-3">
-          <Input
-            placeholder="Full name"
-            value={client.fullname}
-            onChange={(e) => setClient({ ...client, fullname: e.target.value })}
-          />
-          <Input
-            placeholder="Email"
-            value={client.email}
-            onChange={(e) => setClient({ ...client, email: e.target.value })}
-          />
-          <Input
-            placeholder="Phone"
-            value={client.phone}
-            onChange={(e) => setClient({ ...client, phone: e.target.value })}
-          />
-          <Input
-            placeholder="Address"
-            value={client.address}
-            onChange={(e) => setClient({ ...client, address: e.target.value })}
-          />
-          <Input
-            placeholder="Source"
-            value={client.source}
-            onChange={(e) => setClient({ ...client, source: e.target.value })}
-          />
-
-          <div className="flex items-center gap-2">
+        <div className="grid gap-4">
+          <div>
+            <label className="text-sm font-semibold mb-1.5 block">Full Name *</label>
             <Input
-              placeholder="Case number (optional)"
-              value={client.case_number}
-              onChange={(e) =>
-                setClient({ ...client, case_number: e.target.value })
-              }
+              placeholder="Enter full name"
+              value={client.fullname}
+              onChange={(e) => setClient({ ...client, fullname: e.target.value })}
+              className="border-border/60"
             />
-            <Button variant="outline" onClick={handleValidateCase}>
-              Validate
-            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">📧 Email</label>
+              <Input
+                placeholder="email@example.com"
+                value={client.email}
+                onChange={(e) => setClient({ ...client, email: e.target.value })}
+                className="border-border/60"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">📱 Phone</label>
+              <Input
+                placeholder="+1 (555) 000-0000"
+                value={client.phone}
+                onChange={(e) => setClient({ ...client, phone: e.target.value })}
+                className="border-border/60"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold mb-1.5 block">📍 Address</label>
+            <Input
+              placeholder="Street address"
+              value={client.address}
+              onChange={(e) => setClient({ ...client, address: e.target.value })}
+              className="border-border/60"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold mb-1.5 block">🔗 Source</label>
+            <Input
+              placeholder="Lead source"
+              value={client.source}
+              onChange={(e) => setClient({ ...client, source: e.target.value })}
+              className="border-border/60"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold mb-1.5 block"># Case Number (optional)</label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Case #"
+                value={client.case_number}
+                onChange={(e) =>
+                  setClient({ ...client, case_number: e.target.value })
+                }
+                className="border-border/60 flex-1"
+              />
+              <Button 
+                variant="outline" 
+                onClick={handleValidateCase}
+                disabled={!client.case_number.trim()}
+                className="text-xs"
+              >
+                Validate
+              </Button>
+            </div>
           </div>
 
           {client.description && (
-            <Textarea
-              readOnly
-              value={client.description}
-              className="bg-muted text-foreground"
-            />
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">📝 Case Details</label>
+              <Textarea
+                readOnly
+                value={client.description}
+                className="bg-slate-50 dark:bg-slate-900/30 text-foreground border-border/60 text-sm"
+              />
+            </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/50">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>Save</Button>
+          <Button onClick={handleSubmit} disabled={!client.fullname.trim()}>
+            <Save className="w-4 h-4 mr-2" /> Save Client
+          </Button>
         </div>
       </div>
     </div>

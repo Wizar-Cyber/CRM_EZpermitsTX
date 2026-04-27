@@ -413,23 +413,24 @@ export default function RoutesPage() {
                     <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap items-center justify-center gap-2">
                         {lead.current_state === "CONTACTED" ? (
-                          <Button size="icon" variant="ghost" title="Mark as Contacted" onClick={() => updateLeadMutation.mutate({ caseNumber: lead.case_number, action: "CONTACTED" })}>
-                            <Check className="w-4 h-4" />
+                          <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" title="Already marked as Contacted" disabled>
+                            <Check className="w-4 h-4 text-emerald-600" />
                           </Button>
                         ) : (
-                          <Button size="icon" variant="ghost" title="Mark as Contacted" onClick={() => updateLeadMutation.mutate({ caseNumber: lead.case_number, action: "CONTACTED" })}>
-                            <Check className="w-4 h-4" />
+                          <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" title="Mark as Contacted" onClick={() => updateLeadMutation.mutate({ caseNumber: lead.case_number, action: "CONTACTED" })}>
+                            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           </Button>
                         )}
-                        <Button size="icon" variant="ghost" title="Create Client" onClick={() => openCreateClientModal(lead)}>
-                          <UserPlus className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-blue-50 dark:hover:bg-blue-950/30" title="Create Client" onClick={() => openCreateClientModal(lead)}>
+                          <UserPlus className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                         </Button>
-                        <Button size="icon" variant="ghost" title="Send to Map" onClick={() => sendToMap(lead)}>
-                          <MapPin className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-purple-50 dark:hover:bg-purple-950/30" title="Send to Map" onClick={() => sendToMap(lead)}>
+                          <MapPin className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                         </Button>
                         <Button
                           size="icon"
                           variant="ghost"
+                          className="h-8 w-8 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                           title="Close Case"
                           onClick={() => {
                             setConfirmAction({
@@ -444,7 +445,7 @@ export default function RoutesPage() {
                             });
                           }}
                         >
-                          <X className="w-4 h-4 text-rose-600" />
+                          <X className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                         </Button>
                       </div>
                     </td>

@@ -251,14 +251,14 @@ export function AppointmentModal({ event, onClose, onSave, client }: any) {
   ========================================================= */
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={(e) => {
         e.stopPropagation();
         handleCloseSmoothly();
       }}
     >
       <div
-        className={`bg-card rounded-2xl shadow-xl w-[480px] p-6 relative transform transition-all duration-200 ${
+        className={`bg-card border border-border/50 rounded-2xl shadow-2xl w-[90vw] lg:w-[500px] p-6 relative transform transition-all duration-200 max-h-[90vh] overflow-y-auto ${
           closing ? "opacity-0 scale-95" : "opacity-100 scale-100"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -266,22 +266,24 @@ export function AppointmentModal({ event, onClose, onSave, client }: any) {
         {/* Header */}
         <button
           onClick={handleCloseSmoothly}
-          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-xl font-semibold">
-          {isEdit ? "Edit Appointment" : "New Appointment"}
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Fill in the appointment details
-        </p>
+        <div className="mb-5 pb-4 border-b border-border/50">
+          <h2 className="text-2xl font-bold tracking-tight">
+            {isEdit ? "📅 Edit Appointment" : "📅 New Appointment"}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            {isEdit ? "Update the appointment details" : "Create a new appointment with your client"}
+          </p>
+        </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Client */}
           <div className="relative" ref={dropdownRef}>
-            <label className="text-sm font-medium">Client</label>
+            <label className="text-sm font-semibold">👤 Client</label>
             {isEdit || fromClient ? (
               <Input
                 value={search}
@@ -337,39 +339,42 @@ export function AppointmentModal({ event, onClose, onSave, client }: any) {
 
           {/* Address */}
           <div>
-            <label className="text-sm font-medium">Address</label>
+            <label className="text-sm font-semibold">📍 Address</label>
             <Input
               placeholder="Client address or meeting location"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
+              className="mt-1"
             />
           </div>
 
           {/* Advisor */}
           <div>
-            <label className="text-sm font-medium">Advisor (optional)</label>
+            <label className="text-sm font-semibold">👔 Advisor (optional)</label>
             <Input
               placeholder="Advisor name"
               value={form.advisor}
               onChange={(e) => setForm({ ...form, advisor: e.target.value })}
+              className="mt-1"
             />
           </div>
 
           {/* Date */}
           <div>
-            <label className="text-sm font-medium">Date and Time</label>
+            <label className="text-sm font-semibold">🕒 Date and Time</label>
             <Input
               type="datetime-local"
               value={form.date_time}
               onChange={(e) => setForm({ ...form, date_time: e.target.value })}
+              className="mt-1"
             />
           </div>
 
           {/* Status */}
           <div>
-            <label className="text-sm font-medium">Status</label>
+            <label className="text-sm font-semibold">✅ Status</label>
             <select
-              className="w-full border rounded-md p-2"
+              className="w-full mt-1 border border-border/60 bg-background rounded-lg p-2.5 text-sm transition-colors hover:border-border focus:border-primary focus:ring-1 focus:ring-primary/20"
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
             >
@@ -382,7 +387,7 @@ export function AppointmentModal({ event, onClose, onSave, client }: any) {
 
           {/* Appointment note (single) */}
           <div>
-            <label className="text-sm font-medium">Appointment Note</label>
+            <label className="text-sm font-semibold">💭 Appointment Note</label>
             <Textarea
               placeholder="Optional note that belongs only to this appointment"
               value={form.note}
@@ -423,7 +428,7 @@ export function AppointmentModal({ event, onClose, onSave, client }: any) {
                   notes.map((n) => (
                     <div
                       key={n.id}
-                      className="p-2 bg-muted/50 rounded-md text-sm flex justify-between items-start"
+                      className="p-3 bg-muted/30 border border-border/50 rounded-lg text-sm flex justify-between items-start hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex-1 mr-2">
                         {editingNoteId === n.id ? (
@@ -490,7 +495,7 @@ export function AppointmentModal({ event, onClose, onSave, client }: any) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center mt-6">
+        <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/50">
           {isEdit && (
             <Button
               variant="destructive"

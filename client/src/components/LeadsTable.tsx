@@ -335,11 +335,13 @@ export function LeadsTable() {
   }
 
   const [selected, setSelected] = useState<string[]>([]);
-  const [sortField, setSortField] = useState<string>("created_date_local");
+  const [sortField, setSortField] = useState<string>("created_date_inspector");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [modalLead, setModalLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [colorFilter, setColorFilter] = useState<string | null>(null);
+  const [hasInspectorNoteFilter, setHasInspectorNoteFilter] = useState(false);
+  const [minScoreFilter, setMinScoreFilter] = useState<number>(0);
     
   // --- States for the new Client Modal ---
   const [newClientModalOpen, setNewClientModalOpen] = useState(false);
@@ -358,97 +360,202 @@ export function LeadsTable() {
   });
   const leads = data?.data || [];
 
-  // === SMART CLASSIFICATION (fallback) ===
-  const normalizeText = (s?: string | null) =>
-    (s || "")
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[^\w\s-]/g, " ")
-      .replace(/[-_/]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  // === SMART CLASSIFICATION v2 ===
+  // Regla 0: sin inspector resolution → score 0, sin clasificar
+  // Regla 1: negación contextual antes de keywords positivas → descalifica
+  // Regla 2: frases completas ponderadas, no tokens aislados
+  // Regla 3: inspector resolution tiene peso 3x vs descripción ciudadana
 
-  const anyMatch = (text: string, patterns: (string | RegExp)[]) =>
-    patterns.some((p) => (typeof p === "string" ? text.includes(p) : p.test(text)));
+  const norm = (s?: string | null) =>
+    (s || "").toLowerCase().normalize("NFKD")
+      .replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 
-  const NEGATIVE = [
-    "task is closed","case closed","active project","already permitted",
-    "permit approved","permit issued","permitted project",
-    "referred to the structural","referred to structural","referred to electrical",
-    "not investigate","no action required","duplicate case","duplicate request",
-    "referred to","duplicate of case","voided","case cancelled","investigation closed",
-    "unable to verify","not found","resolved previously","compliant","work completed",
-    "no violation found","case closed as permitted","closed by inspector","issue resolved",
-    "duplicate complaint","invalid report","no further action","owner obtained permit",
-    "existing permit","no violation","not a building code violation"
-  ];
-
-  const ILLEGAL = [
-    "unpermitted work","unpermitted","illegal","unauthorized",
-    "no permit","no permits","building without permit", /no\s+\w*\s*permits?/
-  ];
-
-  const SAFETY = [
-    "unsafe","unsafe condition","structural","rotten wood","electrical hazard", /wires?\s+for\s+electric/
-  ];
-
-  const POSITIVE_STRONG = [
-    "site visit","site visit was conducted","inspection conducted","inspection complete",
-    "1st notice","first notice","first inspection","field inspection","visit conducted",
-    "red tag","red-tag","notice of violation","citation issued","126 hold placed",
-    "stop work","violation observed","non-compliance",
-    "construction observed","new construction","structure built","addition built",
-    "remodeling","deck built","roof extension","illegal addition","attached structure",
-    "foundation poured","footing installed","new wall built","driveway installed","garage addition"
-  ];
-
-  const FOLLOW_UP = [
-    "follow up inspection","follow-up scheduled","reinspection","pending inspection",
-    "awaiting reinspection","awaiting compliance","awaiting correction",
-    "still active","open violation","compliance pending","awaiting resolution",
-    "further inspection required"
-  ];
-
-  const NEUTRAL_REVIEW = [
-    "pending assignment","awaiting assignment","inspection scheduled","pending response",
-    "refer to supervisor","pending validation","waiting for response","forwarded to inspector",
-    "information requested","awaiting documentation","awaiting owner response",
-    "forwarded to department","referred to another division","escalated for review"
-  ];
-
-  const scoreTweaks = (t: string) => {
-    let s = 0;
-    if (t.includes("inspected") || t.includes("inspection conducted")) s += 1;
-    if (t.includes("red tag") || t.includes("red-tag")) s += 3;
-    if (t.includes("awaiting compliance")) s += 2;
-    if (t.includes("closed")) s -= 2;
-    if (t.includes("permit issued")) s -= 3;
-    return s;
+  // Detecta si una frase aparece precedida por negación en ventana de 4 palabras
+  const negated = (text: string, phrase: string): boolean => {
+    const idx = text.indexOf(phrase);
+    if (idx === -1) return false;
+    const window = text.slice(Math.max(0, idx - 40), idx);
+    return /\b(no|not|without|never|ninguna?|sin|never|isn t|wasn t|didn t|cannot|can t)\b/.test(window);
   };
 
-  const NEW_CONSTRUCTION = [
-    "foundation","new house","addition","garage","deck","roof","driveway",
+  const phraseMatch = (text: string, phrases: string[]): string | null => {
+    for (const p of phrases) if (text.includes(p)) return p;
+    return null;
+  };
+
+  // ── DISQUALIFIERS (inspector resolution dice que no hay oportunidad) ──────
+  // Frases que el inspector usa para cerrar sin acción de roofing/permitting
+  const DISQ_INSPECTOR: string[] = [
+    "this task is closed",
+    "task is closed",
+    "active project with permit",
+    "active project with multiple permits",
+    "permitted project",
+    "this is a permitted project",
+    "permit bought",
+    "already permitted",
+    "permit approved",
+    "permit issued",
+    "owner obtained permit",
+    "existing permit",
+    "no violation",
+    "no violation found",
+    "not a building code violation",
+    "not a bcv",
+    "this is not a building code",
+    "case closed",
+    "case is closed",
+    "investigation closed",
+    "referred to structural dept",
+    "referred to the structural",
+    "referred to electrical",
+    "occupancy complaint",
+    "please make 311 complaint with occupancy",
+    "minimum standards",
+    "dept of neighborhood",
+    "not a building",
+    "no action required",
+    "no further action",
+    "duplicate case",
+    "duplicate complaint",
+    "voided",
+    "case cancelled",
+    "resolved previously",
+    "issue resolved",
+    "work completed",
+    "service completed",           // cuando viene con cierre definitivo
+    "compliant",
+    "invalid report",
+    "unable to verify",
+    "insufficient information to investigate",
+  ];
+
+  // "service completed" solo descalifica cuando va seguido de cierre explícito
+  const isServiceCompletedDisq = (inspRes: string): boolean => {
+    if (!inspRes.includes("service completed")) return false;
+    return DISQ_INSPECTOR.some((d) => d !== "service completed" && inspRes.includes(d));
+  };
+
+  // ── STRONG POSITIVE (inspector confirma violación activa) ─────────────────
+  const INSP_GREEN_PHRASES: string[] = [
+    "active ongoing investigation",
+    "active/ongoing investigation",
+    "follow up is scheduled",
+    "follow-up is scheduled",
+    "red tag",
+    "red-tag",
+    "stop work order",
+    "stop work",
+    "notice of violation",
+    "citation issued",
+    "126 hold",
+    "non-compliance confirmed",
+    "violation confirmed",
+    "violation found",
+    "violation observed",
+    "illegal construction confirmed",
+    "unpermitted work confirmed",
+    "referred to enforcement",
+  ];
+
+  // ── MODERATE POSITIVE (inspector menciona inspección de campo pendiente) ──
+  const INSP_BLUE_PHRASES: string[] = [
+    "follow up inspection",
+    "follow-up inspection",
+    "reinspection",
+    "pending inspection",
+    "awaiting compliance",
+    "awaiting correction",
+    "open violation",
+    "compliance pending",
+    "further inspection required",
+    "will be inspected",
+    "inspection scheduled",
+    "assign to i",           // "assign to i36" → asignado a inspector
+  ];
+
+  // ── CITIZEN DESCRIPTION: señales de obra sin permiso ─────────────────────
+  // Solo cuentan si NO hay inspector resolution que los descarte
+  const DESC_STRONG: string[] = [
+    "without a permit", "without permit", "without permits",
+    "no permit", "no permits", "no visible permit",
+    "unpermitted work", "unpermitted construction", "unpermitted",
+    "building without permit", "work without permit",
+    "illegal addition", "illegal construction", "unauthorized construction",
+    "red tag", "red-tag",
+    "foundation poured", "footing installed",
+    "construction without",
+  ];
+
+  const DESC_MODERATE: string[] = [
+    "no permit posted", "permit not posted", "permit not visible",
+    "structural work", "electrical work without", "plumbing without",
+    "new construction", "addition to the house", "adding to the house",
+    "garage addition", "deck built", "roof extension",
+    "demolition without", "digging without",
+    "unsafe condition", "unsafe structure", "unsafe building",
+    "electrical hazard", "rotten wood", "structural concern",
+    "setback violation", "setback rule", "setback problem",
+    "deed restricted", "code violation confirmed",
   ];
 
   const getLeadClassification = (lead: Lead) => {
-    const text = normalizeText(
-      [lead.description, lead.resolution, lead.latest_case_notes, (lead as any).resolution_inspector].join(" ")
-    );
+    const inspRes  = norm((lead as any).resolution_inspector);
+    const inspDesc = norm((lead as any).description_inspector);
+    const desc     = norm(lead.description);
+    const res      = norm(lead.resolution);
+    const notes    = norm(lead.latest_case_notes);
 
-    let baseScore = 0;
-    let color: keyof typeof statusColors = "DEFAULT";
-    let tag = "Unclassified";
+    const hasInspectorResolution = inspRes.length > 5;
 
-    if (anyMatch(text, NEGATIVE))                { color = "RED";    tag = "Closed / Resolved";   baseScore = 0; }
-    else if (anyMatch(text, ILLEGAL))            { color = "GREEN";  tag = "Illegal Work";        baseScore = 8; }
-    else if (anyMatch(text, SAFETY))             { color = "GREEN";  tag = "Structural Concern";  baseScore = 7; }
-    else if (anyMatch(text, POSITIVE_STRONG))    { color = "GREEN";  tag = "Active Violation";    baseScore = 6; }
-    else if (anyMatch(text, FOLLOW_UP))          { color = "BLUE";   tag = "Active Follow-up";    baseScore = 5; }
-    else if (anyMatch(text, NEUTRAL_REVIEW))     { color = "YELLOW"; tag = "Pending Review";      baseScore = 4; }
-    else if (anyMatch(text, NEW_CONSTRUCTION))   { color = "GREEN";  tag = "New Construction";    baseScore = 5; }
+    // ── Regla 0: sin inspector resolution → no clasificar ────────────────
+    if (!hasInspectorResolution) {
+      // Excepción: descripción ciudadana muy fuerte (red tag confirmado, etc.)
+      const descMatch = phraseMatch(desc + " " + notes, DESC_STRONG);
+      if (descMatch && !negated(desc, descMatch)) {
+        return { color: "YELLOW" as keyof typeof statusColors, tag: "Unverified Report", score: 2 };
+      }
+      return { color: "DEFAULT" as keyof typeof statusColors, tag: "No Inspector Review", score: 0 };
+    }
 
-    const s = Math.max(0, Math.min(10, baseScore + scoreTweaks(text)));
-    return { color, tag, score: s };
+    // ── Regla 1: inspector dice que está cerrado / no hay oportunidad ─────
+    const isDisq = isServiceCompletedDisq(inspRes)
+      || DISQ_INSPECTOR.filter(d => d !== "service completed").some(d => inspRes.includes(d));
+
+    if (isDisq) {
+      return { color: "DEFAULT" as keyof typeof statusColors, tag: "Closed / No Opportunity", score: 0 };
+    }
+
+    // ── Regla 2: inspector confirma violación activa (GREEN) ──────────────
+    const greenMatch = phraseMatch(inspRes, INSP_GREEN_PHRASES);
+    if (greenMatch) {
+      let score = 8;
+      if (inspRes.includes("red tag") || inspRes.includes("stop work")) score = 10;
+      if (inspRes.includes("follow up is scheduled") || inspRes.includes("active/ongoing")) score = 9;
+      return { color: "GREEN" as keyof typeof statusColors, tag: "Active Investigation", score };
+    }
+
+    // ── Regla 3: inspector asignó seguimiento (BLUE) ──────────────────────
+    const blueMatch = phraseMatch(inspRes + " " + inspDesc, INSP_BLUE_PHRASES);
+    if (blueMatch) {
+      const score = inspRes.includes("awaiting compliance") ? 7 : 6;
+      return { color: "BLUE" as keyof typeof statusColors, tag: "Inspector Follow-up", score };
+    }
+
+    // ── Regla 4: inspector respondió pero sin cierre ni confirmación ──────
+    // → evaluar descripción ciudadana para ver si vale la pena
+    const descAll = desc + " " + notes;
+    const strongDescMatch = phraseMatch(descAll, DESC_STRONG);
+    if (strongDescMatch && !negated(descAll, strongDescMatch)) {
+      return { color: "YELLOW" as keyof typeof statusColors, tag: "Pending Verification", score: 4 };
+    }
+    const modDescMatch = phraseMatch(descAll, DESC_MODERATE);
+    if (modDescMatch && !negated(descAll, modDescMatch)) {
+      return { color: "YELLOW" as keyof typeof statusColors, tag: "Possible Violation", score: 3 };
+    }
+
+    // ── Sin señales suficientes ───────────────────────────────────────────
+    return { color: "DEFAULT" as keyof typeof statusColors, tag: "Low Signal", score: 1 };
   };
 
   // 👉 Si existe manual_classification en DB, usarlo como color/filtro; si no, fallback al smart
@@ -486,9 +593,22 @@ export function LeadsTable() {
           l.incident_address?.toLowerCase().includes(searchLower)
       )
       .filter((l) => (colorFilter ? classifyLead(l) === colorFilter : true))
+      .filter((l) => hasInspectorNoteFilter ? !!(l.description_inspector || l.resolution_inspector) : true)
+      .filter((l) => minScoreFilter > 0 ? getLeadClassification(l).score >= minScoreFilter : true)
       .sort((a, b) => {
-        const aVal = (a[sortField as keyof Lead] as any)?.toString?.().toLowerCase?.() ?? "";
-        const bVal = (b[sortField as keyof Lead] as any)?.toString?.().toLowerCase?.() ?? "";
+        if (sortField === "tag_score") {
+          const aScore = getLeadClassification(a).score;
+          const bScore = getLeadClassification(b).score;
+          return sortDirection === "asc" ? aScore - bScore : bScore - aScore;
+        }
+        // For date fields, sort nulls last
+        const aRaw = (a[sortField as keyof Lead] as any);
+        const bRaw = (b[sortField as keyof Lead] as any);
+        if (aRaw == null && bRaw == null) return 0;
+        if (aRaw == null) return 1;
+        if (bRaw == null) return -1;
+        const aVal = aRaw?.toString?.().toLowerCase?.() ?? "";
+        const bVal = bRaw?.toString?.().toLowerCase?.() ?? "";
         return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       });
 
@@ -502,9 +622,9 @@ export function LeadsTable() {
     });
   };
 
-  const sortedLeads = useMemo(() => sortAndFilter(activeBase), [leads, sortField, sortDirection, searchTerm, colorFilter]);
-  const sortedClassifiedLeads = useMemo(() => sortAndFilter(classifiedBase), [leads, sortField, sortDirection, searchTerm, colorFilter]);
-  const sortedRedLeads = useMemo(() => sortAndFilter(redBase), [leads, sortField, sortDirection, searchTerm, colorFilter]);
+  const sortedLeads = useMemo(() => sortAndFilter(activeBase), [leads, sortField, sortDirection, searchTerm, colorFilter, hasInspectorNoteFilter, minScoreFilter]);
+  const sortedClassifiedLeads = useMemo(() => sortAndFilter(classifiedBase), [leads, sortField, sortDirection, searchTerm, colorFilter, hasInspectorNoteFilter, minScoreFilter]);
+  const sortedRedLeads = useMemo(() => sortAndFilter(redBase), [leads, sortField, sortDirection, searchTerm, colorFilter, hasInspectorNoteFilter, minScoreFilter]);
 
   const toggleSelectAll = (checked: boolean, list: Lead[]) =>
     setSelected(checked ? list.map((l) => l.case_number) : []);
@@ -653,32 +773,9 @@ export function LeadsTable() {
     );
 
   // === Encabezado y filtros (compartidos por ambas pestañas) ===
-  const HeaderAndFilters = ({ list }: { list: Lead[] }) => (
+  const HeaderAndFilters = ({ list: _list }: { list: Lead[] }) => (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            {pageTab === "activos" ? "Active Leads" : "Classified Leads"}
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{list.length} records</p>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" onClick={copySelectedDetails} disabled={!selected.length} variant="outline" size="sm" className="text-xs cursor-pointer">
-            <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy ({selected.length})
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            className="text-xs cursor-pointer"
-            onClick={() => sendMany(list.filter((l) => selected.includes(l.case_number)))}
-            disabled={!selected.length}
-          >
-            <MapPin className="w-3.5 h-3.5 mr-1.5" /> Send to Map
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between gap-3 mb-4">
+      <div className="flex flex-col md:flex-row justify-between gap-3 mb-3">
         <div className="relative max-w-xs w-full">
           <Input
             placeholder="Search case number or address..."
@@ -693,10 +790,10 @@ export function LeadsTable() {
         <div className="flex items-center gap-1.5 flex-wrap">
           {[
             { key: null, label: "All", bg: "bg-slate-100 dark:bg-slate-800", active: "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900", dot: null },
-            { key: "GREEN", label: "Active", bg: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400", active: "bg-emerald-600 text-white", dot: "bg-emerald-500" },
-            { key: "BLUE", label: "Follow-up", bg: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400", active: "bg-blue-600 text-white", dot: "bg-blue-500" },
-            { key: "YELLOW", label: "Pending", bg: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400", active: "bg-amber-500 text-white", dot: "bg-amber-400" },
-            { key: "RED", label: "Resolved", bg: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400", active: "bg-rose-600 text-white", dot: "bg-rose-500" },
+            { key: "GREEN", label: "Green", bg: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400", active: "bg-emerald-600 text-white", dot: "bg-emerald-500" },
+            { key: "BLUE", label: "Blue", bg: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400", active: "bg-blue-600 text-white", dot: "bg-blue-500" },
+            { key: "YELLOW", label: "Yellow", bg: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400", active: "bg-amber-500 text-white", dot: "bg-amber-400" },
+            { key: "RED", label: "Red", bg: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400", active: "bg-rose-600 text-white", dot: "bg-rose-500" },
           ].map(({ key, label, bg, active, dot }) => (
             <button
               key={key ?? "all"}
@@ -714,41 +811,55 @@ export function LeadsTable() {
           ))}
         </div>
       </div>
+      {colorFilter && (
+        <div className="flex items-center gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setColorFilter(null)}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+          >
+            <X className="w-3 h-3" /> Clear filters
+          </button>
+        </div>
+      )}
     </>
   );
 
-  const Table = ({ list }: { list: Lead[] }) => (
+  const TABLE_COLS = [
+    { key: "case_number", label: "Case #" },
+    { key: "incident_address", label: "Address" },
+    { key: "status", label: "Status" },
+    { key: "tag_score", label: "Classification" },
+    { key: "resolution_inspector", label: "Inspector Resolution" },
+  ];
+
+  const LeadsTableView = ({ list }: { list: Lead[] }) => (
     <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
       <table className="w-full">
         <thead>
           <tr className="bg-gradient-to-r from-slate-800 to-slate-700">
-            <th className="p-4 w-10">
+            <th className="p-4 w-10 text-center">
               <Checkbox
                 checked={selected.length === list.length && !!list.length}
                 onCheckedChange={(chk) => toggleSelectAll(!!chk, list)}
                 className="border-slate-400 data-[state=checked]:bg-white data-[state=checked]:text-slate-800"
               />
             </th>
-            {["case_number", "incident_address", "status", "tag_score", "channel"].map((col) => (
-              <th key={col} className="p-4 text-left">
+            {TABLE_COLS.map((col) => (
+              <th key={col.key} className="p-4 text-center">
                 <button
                   onClick={() => {
-                    if (col !== "tag_score") {
-                      if (sortField === col)
-                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-                      else setSortField(col);
-                    }
+                    if (sortField === col.key) setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                    else { setSortField(col.key); setSortDirection("desc"); }
                   }}
-                  className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 hover:text-white transition-colors cursor-pointer"
                 >
-                  {col === "tag_score"
-                    ? "Classification"
-                    : col.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  {col !== "tag_score" && <ArrowUpDown className="w-3 h-3 opacity-60" />}
+                  {col.label}
+                  <ArrowUpDown className={`w-3 h-3 opacity-60 ${sortField === col.key ? "opacity-100 text-blue-300" : ""}`} />
                 </button>
               </th>
             ))}
-            <th className="p-4 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Actions</th>
+            <th className="p-4 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -756,10 +867,13 @@ export function LeadsTable() {
             const auto = getLeadClassification(lead);
             const manualKey = (((lead as any).manual_classification || "") as string).toUpperCase();
             const colorKey = (["GREEN","YELLOW","BLUE","RED"].includes(manualKey) ? manualKey : auto.color) as keyof typeof statusColors;
-
             const isResolved =
               (lead as any).consulta === "red" ||
               localStorage.getItem(`resolved_${lead.case_number}`) === "true";
+            const inspRes = (lead as any).resolution_inspector as string | null | undefined;
+            const inspResShort = inspRes
+              ? inspRes.replace(/\d{1,2}\/\d{1,2}\/\d{4}.*$/i, "").trim().slice(0, 80) + (inspRes.length > 80 ? "…" : "")
+              : "—";
             return (
               <tr
                 key={lead.case_number}
@@ -771,28 +885,28 @@ export function LeadsTable() {
                     : "bg-slate-50/40 dark:bg-slate-800/20 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 }`}
               >
-                <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selected.includes(lead.case_number)}
-                    onCheckedChange={(chk) =>
-                      toggleSelectOne(lead.case_number, chk as boolean)
-                    }
+                    onCheckedChange={(chk) => toggleSelectOne(lead.case_number, chk as boolean)}
                   />
                 </td>
-                <td className="p-4 font-semibold text-sm text-slate-800 dark:text-slate-200" onClick={() => setModalLead(lead)}>{lead.case_number}</td>
-                <td className="p-4 text-sm text-slate-500 dark:text-slate-400 max-w-[220px] truncate" onClick={() => setModalLead(lead)}>{lead.incident_address}</td>
-                <td className="p-4" onClick={() => setModalLead(lead)}>
+                <td className="p-4 text-center font-semibold text-sm text-slate-800 dark:text-slate-200" onClick={() => setModalLead(lead)}>{lead.case_number}</td>
+                <td className="p-4 text-center text-sm text-slate-500 dark:text-slate-400 max-w-[220px] truncate" onClick={() => setModalLead(lead)}>{lead.incident_address}</td>
+                <td className="p-4 text-center" onClick={() => setModalLead(lead)}>
                   <Badge className={`${statusColors[colorKey]} rounded-full px-2.5 py-0.5 text-[11px] font-medium`}>
                     {lead.status || "—"}
                   </Badge>
                 </td>
-                <td className="p-4 text-sm" onClick={() => setModalLead(lead)}>
+                <td className="p-4 text-center text-sm" onClick={() => setModalLead(lead)}>
                   <div className="font-medium text-slate-700 dark:text-slate-300">{auto.tag}</div>
                   <div className="text-xs text-slate-400 mt-0.5">Score: {auto.score}/10</div>
                 </td>
-                <td className="p-4 text-sm text-slate-500 dark:text-slate-400" onClick={() => setModalLead(lead)}>{lead.channel || "—"}</td>
-                <td className="p-4">
-                  <div className="flex gap-1">
+                <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400 max-w-[200px]" onClick={() => setModalLead(lead)}>
+                  <span title={inspRes || ""} className="line-clamp-2">{inspResShort}</span>
+                </td>
+                <td className="p-4 text-center">
+                  <div className="flex gap-1 justify-center">
                     <Button type="button" size="icon" variant="ghost" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onClick={() => setModalLead(lead)} title="View Details">
                       <Eye className="w-3.5 h-3.5 text-slate-500" />
                     </Button>
@@ -829,214 +943,196 @@ export function LeadsTable() {
   return (
     <div className="w-full">
       <Tabs value={pageTab} onValueChange={(v) => setPageTab(v as any)} className="w-full">
-        <TabsList className="mb-5 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-          <TabsTrigger value="activos" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
-            Active Leads
-          </TabsTrigger>
-          <TabsTrigger value="clasificados" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
-            Classified Leads
-          </TabsTrigger>
-          <TabsTrigger value="red" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-sm flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500 data-[state=active]:bg-white" />
-            Red Leads
-            {redBase.length > 0 && (
-              <span className="ml-1 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {redBase.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+          <TabsList className="rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+            <TabsTrigger value="activos" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              Active Leads
+            </TabsTrigger>
+            <TabsTrigger value="clasificados" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              Classified Leads
+            </TabsTrigger>
+            <TabsTrigger value="red" className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-sm flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500 data-[state=active]:bg-white" />
+              Red Leads
+              {redBase.length > 0 && (
+                <span className="ml-1 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {redBase.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            <Button type="button" onClick={copySelectedDetails} disabled={!selected.length} variant="outline" size="sm" className="text-xs cursor-pointer">
+              <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy ({selected.length})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="text-xs cursor-pointer"
+              onClick={() => {
+                const currentList = pageTab === "activos" ? sortedLeads : pageTab === "clasificados" ? sortedClassifiedLeads : sortedRedLeads;
+                sendMany(currentList.filter((l) => selected.includes(l.case_number)));
+              }}
+              disabled={!selected.length}
+            >
+              <MapPin className="w-3.5 h-3.5 mr-1.5" /> Send to Map
+            </Button>
+          </div>
+        </div>
 
         <TabsContent value="activos" className="space-y-4">
           <HeaderAndFilters list={sortedLeads} />
-          <Table list={sortedLeads} />
+          <LeadsTableView list={sortedLeads} />
         </TabsContent>
 
         <TabsContent value="clasificados" className="space-y-4">
           <HeaderAndFilters list={sortedClassifiedLeads} />
-          <Table list={sortedClassifiedLeads} />
+          <LeadsTableView list={sortedClassifiedLeads} />
         </TabsContent>
 
         <TabsContent value="red" className="space-y-4">
           <HeaderAndFilters list={sortedRedLeads} />
-          <Table list={sortedRedLeads} />
+          <LeadsTableView list={sortedRedLeads} />
         </TabsContent>
       </Tabs>
 
       {/* Detail Modal */}
-      {modalLead && (
+      {modalLead && (() => {
+        const auto = getLeadClassification(modalLead);
+        const manualKey = (((modalLead as any).manual_classification || "") as string).toUpperCase();
+        const colorKey = (["GREEN","YELLOW","BLUE","RED"].includes(manualKey) ? manualKey : auto.color) as keyof typeof statusColors;
+        const isResolved = (modalLead as any).consulta === "red" || localStorage.getItem(`resolved_${modalLead.case_number}`) === "true";
+        const isPending = updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending;
+        return (
         <Dialog open={!!modalLead} onOpenChange={() => setModalLead(null)}>
-          {/* Previene autofocus extraño */}
           <DialogContent
-            className="max-w-3xl bg-card"
+            className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0"
             onOpenAutoFocus={(e) => e.preventDefault()}
             onCloseAutoFocus={(e) => e.preventDefault()}
           >
-            <DialogHeader>
-              <DialogTitle className="text-2xl">
-                Case #{modalLead.case_number}
-              </DialogTitle>
-              <DialogDescription>
-                {modalLead.ava_case_type} — {modalLead.status}
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* Tabs internas del modal de detalle */}
-            <Tabs defaultValue="details" className="mt-4">
-              <TabsList>
-                {["details", "inspector", "general", "dates", "location"].map((tab) => (
-                  <TabsTrigger key={tab} value={tab}>
-                    {tab.toUpperCase()}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              <TabsContent value="details">
-                <DetailItem label="Description">{modalLead.description}</DetailItem>
-                <DetailItem label="Latest Notes">
-                  {modalLead.latest_case_notes}
-                </DetailItem>
-                <DetailItem label="Resolution">{modalLead.resolution}</DetailItem>
-              </TabsContent>
-              <TabsContent value="inspector">
-                <DetailItem label="Inspector Description">
-                  {modalLead.description_inspector}
-                </DetailItem>
-                <DetailItem label="Inspector Resolution">
-                  {modalLead.resolution_inspector}
-                </DetailItem>
-                <DetailItem label="Inspector Date">
-                  {modalLead.created_date_inspector
-                    ? new Date(modalLead.created_date_inspector as any).toLocaleString()
-                    : "—"}
-                </DetailItem>
-                <DetailItem label="URL">
-                  {(modalLead as any).url ? (
-                    <a
-                      href={(modalLead as any).url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 underline break-all"
-                    >
-                      {(modalLead as any).url}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </DetailItem>
-              </TabsContent>
-              <TabsContent value="general">
-                <DetailItem label="Address">{modalLead.incident_address}</DetailItem>
-                <DetailItem label="Channel">{modalLead.channel}</DetailItem>
-              </TabsContent>
-              <TabsContent value="dates">
-                <DetailItem label="Created (Local)">
-                  {modalLead.created_date_local
-                    ? new Date(modalLead.created_date_local as any).toLocaleString()
-                    : "—"}
-                </DetailItem>
-                <DetailItem label="Resolve By">
-                  {modalLead.resolve_by_time
-                    ? new Date(modalLead.resolve_by_time as any).toLocaleString()
-                    : "—"}
-                </DetailItem>
-              </TabsContent>
-              <TabsContent value="location">
-                <DetailItem label="State">
-                  {modalLead.state_code_name}
-                </DetailItem>
-                <DetailItem label="ZIP Code">{modalLead.zip_code}</DetailItem>
-              </TabsContent>
-            </Tabs>
-
-            {/* Clasificación y cerrar */}
-            <DialogFooter className="mt-6 flex items-center justify-between">
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* GREEN / BLUE / YELLOW -> manual_classification (no toca consulta) */}
-                <Button
-                  type="button"
-                  size="icon"
-                  className="h-8 w-8 rounded-full bg-emerald-600 hover:bg-emerald-700 p-0"
-                  title="Mark as Green (Manual)"
-                  onClick={() => handleSetManualClassification(modalLead, "green")}
-                  disabled={updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending}
-                >
-                  <div className="h-4 w-4 rounded-full bg-emerald-600"></div>
-                </Button>
-
-                <Button
-                  type="button"
-                  size="icon"
-                  className="h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 p-0"
-                  title="Mark as Blue (Manual)"
-                  onClick={() => handleSetManualClassification(modalLead, "blue")}
-                  disabled={updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending}
-                >
-                  <div className="h-4 w-4 rounded-full bg-blue-600"></div>
-                </Button>
-
-                <Button
-                  type="button"
-                  size="icon"
-                  className="h-8 w-8 rounded-full bg-amber-500 hover:bg-amber-600 p-0"
-                  title="Mark as Yellow (Manual)"
-                  onClick={() => handleSetManualClassification(modalLead, "yellow")}
-                  disabled={updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending}
-                >
-                  <div className="h-4 w-4 rounded-full bg-amber-500"></div>
-                </Button>
-
-                {/* RED -> consulta = 'red' */}
-                {((modalLead as any).consulta !== "red" && localStorage.getItem(`resolved_${modalLead.case_number}`) !== "true") && (
-                  <Button
-                    type="button"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-rose-600 hover:bg-rose-700 p-0"
-                    title="Mark as Resolved (consulta='red')"
-                    onClick={() => handleSetRedConsultation(modalLead)}
-                    disabled={updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending}
-                  >
-                    <div className="h-4 w-4 rounded-full bg-rose-600"></div>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] p-6 text-white rounded-t-lg flex-shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-mono text-xs px-2 py-0.5 bg-white/20 rounded text-white/80">Case #{modalLead.case_number}</span>
+                    <Badge className={`${statusColors[colorKey]} text-[11px]`}>{auto.tag}</Badge>
+                    <span className="text-xs text-white/60">Score {auto.score}/10</span>
+                    {isResolved && <span className="text-xs bg-rose-500/30 text-rose-200 px-2 py-0.5 rounded">Resolved</span>}
+                  </div>
+                  <h2 className="text-xl font-bold truncate">{modalLead.incident_address || "No address"}</h2>
+                  <p className="text-blue-200 text-sm mt-0.5">{modalLead.ava_case_type || ""} {modalLead.status ? `— ${modalLead.status}` : ""}</p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button type="button" size="sm" variant="secondary" onClick={() => handleOpenCreateClientModal(modalLead)} disabled={isPending} className="text-xs">
+                    <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Client
                   </Button>
-                )}
+                  <Button type="button" size="sm" variant="ghost" onClick={() => sendOne(modalLead)} className="text-white hover:bg-white/20 text-xs">
+                    <MapPin className="w-3.5 h-3.5 mr-1.5" /> Map
+                  </Button>
+                </div>
+              </div>
+            </div>
 
-                {(((modalLead as any).consulta === "red") || localStorage.getItem(`resolved_${modalLead.case_number}`) === "true") && (
-                  <>
-                    <div className="flex items-center text-sm text-red-600 font-semibold">
-                      Manually set as RED
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 px-3"
-                      title="Revert RED state"
-                      onClick={() => handleRevertClassification(modalLead)}
-                      disabled={updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending}
-                    >
-                      <RotateCcw className="w-4 h-4 mr-2 text-blue-500" /> Revert RED
-                    </Button>
-                  </>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <Tabs defaultValue="details">
+                <TabsList className="mb-4 bg-slate-100 dark:bg-slate-800">
+                  <TabsTrigger value="details" className="text-xs">Details</TabsTrigger>
+                  <TabsTrigger value="inspector" className="text-xs">Inspector</TabsTrigger>
+                  <TabsTrigger value="location" className="text-xs">Location</TabsTrigger>
+                  <TabsTrigger value="dates" className="text-xs">Dates</TabsTrigger>
+                </TabsList>
+                <TabsContent value="details" className="space-y-0">
+                  <DetailItem label="Description">{modalLead.description}</DetailItem>
+                  <DetailItem label="Latest Notes">{modalLead.latest_case_notes}</DetailItem>
+                  <DetailItem label="Resolution">{modalLead.resolution}</DetailItem>
+                  <DetailItem label="Channel">{modalLead.channel}</DetailItem>
+                </TabsContent>
+                <TabsContent value="inspector" className="space-y-0">
+                  {(modalLead.description_inspector || modalLead.resolution_inspector) ? (
+                    <>
+                      <div className="mb-3 px-3 py-2 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800 text-xs text-purple-700 dark:text-purple-300 font-medium">
+                        Inspector note recorded
+                      </div>
+                      <DetailItem label="Description">{modalLead.description_inspector}</DetailItem>
+                      <DetailItem label="Resolution">{modalLead.resolution_inspector}</DetailItem>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-4">No inspector notes recorded.</p>
+                  )}
+                  <DetailItem label="Inspector Date">
+                    {modalLead.created_date_inspector ? new Date(modalLead.created_date_inspector as any).toLocaleString() : "—"}
+                  </DetailItem>
+                  <DetailItem label="URL">
+                    {(modalLead as any).url ? (
+                      <a href={(modalLead as any).url} target="_blank" rel="noreferrer" className="text-blue-600 underline break-all text-xs">
+                        {(modalLead as any).url}
+                      </a>
+                    ) : "—"}
+                  </DetailItem>
+                </TabsContent>
+                <TabsContent value="location" className="space-y-0">
+                  <DetailItem label="Address">{modalLead.incident_address}</DetailItem>
+                  <DetailItem label="State">{modalLead.state_code_name}</DetailItem>
+                  <DetailItem label="ZIP Code">{modalLead.zip_code}</DetailItem>
+                </TabsContent>
+                <TabsContent value="dates" className="space-y-0">
+                  <DetailItem label="Created (Local)">
+                    {modalLead.created_date_local ? new Date(modalLead.created_date_local as any).toLocaleString() : "—"}
+                  </DetailItem>
+                  <DetailItem label="Resolve By">
+                    {modalLead.resolve_by_time ? new Date(modalLead.resolve_by_time as any).toLocaleString() : "—"}
+                  </DetailItem>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 flex-wrap p-4 border-t border-border flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground mr-1">Classify:</span>
+                {[
+                  { color: "green" as const, cls: "bg-emerald-500 hover:bg-emerald-600 text-white", label: "Green" },
+                  { color: "blue" as const, cls: "bg-blue-500 hover:bg-blue-600 text-white", label: "Blue" },
+                  { color: "yellow" as const, cls: "bg-amber-400 hover:bg-amber-500 text-white", label: "Yellow" },
+                ].map(({ color, cls, label }) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => handleSetManualClassification(modalLead, color)}
+                    disabled={isPending}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${cls} ${manualKey.toLowerCase() === color ? "ring-2 ring-offset-1 ring-current" : ""}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {!isResolved ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSetRedConsultation(modalLead)}
+                    disabled={isPending}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors cursor-pointer"
+                  >
+                    Mark Resolved
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleRevertClassification(modalLead)}
+                    disabled={isPending}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-slate-500 hover:bg-slate-600 transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Revert
+                  </button>
                 )}
               </div>
-
-              <div className="flex items-center gap-3">
-                <Button 
-                  type="button"
-                  onClick={() => handleOpenCreateClientModal(modalLead)}
-                  title="Create Client Record"
-                  variant="secondary"
-                  disabled={updateLeadManualClassificationMutation.isPending || updateLeadConsultationMutation.isPending}
-                >
-                  <UserPlus className="w-4 h-4 mr-2" /> Create Client
-                </Button>
-
-                <Button type="button" variant="destructive" onClick={() => setModalLead(null)}>
-                  Close
-                </Button>
-              </div>
-            </DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setModalLead(null)}>Close</Button>
+            </div>
           </DialogContent>
         </Dialog>
-      )}
+        );
+      })()}
 
       {/* CLIENT MODAL */}
       {newClientModalOpen && clientToCreate.case_number && (

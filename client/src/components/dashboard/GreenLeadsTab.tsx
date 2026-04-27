@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Eye } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiGet, apiPatch } from "@/lib/api";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface GreenLead {
   case_number: string;
@@ -32,6 +34,25 @@ interface GreenLeadsResponse {
 
 type SortOption = "days_desc" | "days_asc" | "date_desc" | "date_asc";
 
+interface FullLeadDetails extends GreenLead {
+  created_date_local?: string | null;
+  created_date_inspector?: string | null;
+  resolution_inspector?: string | null;
+  description_inspector?: string | null;
+  resolve_by_time?: string | null;
+  state_code_name?: string | null;
+  channel?: string | null;
+  url?: string | null;
+  status?: string | null;
+}
+
+const DetailItem = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-4 gap-1 sm:gap-4 py-2 border-b border-border/50">
+    <dt className="text-sm font-semibold text-muted-foreground sm:col-span-1">{label}</dt>
+    <dd className="sm:col-span-3 text-sm">{children || "—"}</dd>
+  </div>
+);
+
 export function GreenLeadsTab() {
   const [, setLocation] = useLocation();
   const [leads, setLeads] = useState<GreenLead[]>([]);
@@ -42,6 +63,9 @@ export function GreenLeadsTab() {
   const [zipFilter, setZipFilter] = useState("");
   const [sort, setSort] = useState<SortOption>("days_desc");
   const [loading, setLoading] = useState(false);
+  const [viewLead, setViewLead] = useState<GreenLead | null>(null);
+  const [fullLeadDetails, setFullLeadDetails] = useState<FullLeadDetails | null>(null);
+  const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -101,6 +125,20 @@ export function GreenLeadsTab() {
     }
   };
 
+  const openLeadDetailsModal = async (lead: GreenLead) => {
+    setViewLead(lead);
+    setLoadingLeadDetails(true);
+    try {
+      const details = await apiGet<FullLeadDetails>(`/leads/${lead.case_number}`);
+      setFullLeadDetails({ ...lead, ...details });
+    } catch (err: any) {
+      console.error("Error loading lead details:", err);
+      toast.error("Could not load lead details");
+    } finally {
+      setLoadingLeadDetails(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Header with count chips */}
@@ -108,7 +146,7 @@ export function GreenLeadsTab() {
         <div>
           <h2 className="text-lg font-semibold">Green Leads → Route</h2>
           <p className="text-sm text-muted-foreground">
-            Leads clasificados como green listos para delivery/ruta
+            Leads manually classified as green since April 20 — ready for delivery/route
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -117,7 +155,7 @@ export function GreenLeadsTab() {
             Total Green: {totalCount}
           </span>
           <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-xs font-medium border border-blue-200">
-            Disponibles: {availableCount}
+            Available: {availableCount}
           </span>
         </div>
       </div>
@@ -126,7 +164,7 @@ export function GreenLeadsTab() {
       <div className="flex flex-wrap gap-2">
         <input
           type="text"
-          placeholder="Buscar por dirección o case #..."
+          placeholder="Search by address or case #..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-48 px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -136,7 +174,7 @@ export function GreenLeadsTab() {
           onChange={(e) => setZipFilter(e.target.value)}
           className="px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="">Todos los zipcodes</option>
+          <option value="">All zipcodes</option>
           {uniqueZips.map((z) => (
             <option key={z} value={z}>
               {z}
@@ -148,17 +186,17 @@ export function GreenLeadsTab() {
           onChange={(e) => setSort(e.target.value as SortOption)}
           className="px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="days_desc">Más días esperando primero</option>
-          <option value="days_asc">Menos días esperando primero</option>
-          <option value="date_desc">Clasificado más reciente</option>
-          <option value="date_asc">Clasificado más antiguo</option>
+          <option value="days_desc">Most days waiting first</option>
+          <option value="days_asc">Least days waiting first</option>
+          <option value="date_desc">Most recently classified</option>
+          <option value="date_asc">Oldest classified</option>
         </select>
       </div>
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-600 text-white rounded-lg flex-wrap">
-          <span className="text-sm font-medium">{selected.size} seleccionados</span>
+          <span className="text-sm font-medium">{selected.size} selected</span>
           <div className="flex gap-2 ml-auto">
             <button
               onClick={() => handleRoute(Array.from(selected))}
@@ -181,10 +219,10 @@ export function GreenLeadsTab() {
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <CheckCircle2 className="w-12 h-12 text-green-400" />
           <p className="text-base font-medium text-foreground">
-            No hay green leads disponibles
+            No green leads available
           </p>
           <p className="text-sm text-muted-foreground">
-            Todos los leads han sido enviados a delivery o ruta.
+            All leads have been sent to delivery or route.
           </p>
         </div>
       ) : (
@@ -199,11 +237,11 @@ export function GreenLeadsTab() {
                   />
                 </TableHead>
                 <TableHead>Case #</TableHead>
-                <TableHead>Dirección</TableHead>
+                <TableHead>Address</TableHead>
                 <TableHead>Zipcode</TableHead>
-                <TableHead>Clasificado</TableHead>
-                <TableHead>Días Esperando</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead>Classified</TableHead>
+                <TableHead>Days Waiting</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -255,9 +293,19 @@ export function GreenLeadsTab() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1.5 justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openLeadDetailsModal(lead)}
+                          className="h-8 px-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
+                          title="View case details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
                         <button
                           onClick={() => handleRoute([lead.case_number])}
-                          className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-medium hover:bg-blue-100 transition-colors"
+                          className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
                         >
                           Route →
                         </button>
@@ -270,6 +318,66 @@ export function GreenLeadsTab() {
           </Table>
         </div>
       )}
+
+      <Dialog open={!!viewLead} onOpenChange={(open) => {
+        if (!open) {
+          setViewLead(null);
+          setFullLeadDetails(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto p-4">
+          <DialogHeader className="mb-3">
+            <DialogTitle>Case Details</DialogTitle>
+            <DialogDescription>
+              Case #{fullLeadDetails?.case_number || viewLead?.case_number || "—"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingLeadDetails ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">Loading details...</p>
+            </div>
+          ) : fullLeadDetails ? (
+            <div className="space-y-4">
+              <div className="space-y-0">
+                <DetailItem label="Case #">{fullLeadDetails.case_number}</DetailItem>
+                <DetailItem label="Address">{fullLeadDetails.incident_address}</DetailItem>
+                <DetailItem label="State">{fullLeadDetails.state_code_name || "—"}</DetailItem>
+                <DetailItem label="Zip Code">{fullLeadDetails.zip_code}</DetailItem>
+                <DetailItem label="Channel">{fullLeadDetails.channel || "—"}</DetailItem>
+                <DetailItem label="Classification Date">
+                  {fullLeadDetails.classified_at
+                    ? new Date(fullLeadDetails.classified_at).toLocaleString()
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Created">{fullLeadDetails.created_date_local
+                    ? new Date(fullLeadDetails.created_date_local).toLocaleString()
+                    : "—"}</DetailItem>
+                <DetailItem label="Resolve By">{fullLeadDetails.resolve_by_time
+                    ? new Date(fullLeadDetails.resolve_by_time).toLocaleString()
+                    : "—"}</DetailItem>
+                <DetailItem label="Status">{fullLeadDetails.status || "—"}</DetailItem>
+                <DetailItem label="Description">{fullLeadDetails.description_inspector || "—"}</DetailItem>
+                <DetailItem label="Resolution">{fullLeadDetails.resolution_inspector || "—"}</DetailItem>
+                <DetailItem label="URL">
+                  {fullLeadDetails.url ? (
+                    <a href={fullLeadDetails.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all text-xs">
+                      {fullLeadDetails.url}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </DetailItem>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">No details available</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

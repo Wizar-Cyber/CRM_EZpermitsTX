@@ -208,9 +208,15 @@ export function AdminUsersPanel() {
 
   const remove = async (id: number) => {
     const target = users.find((u) => u.id === id);
+    const isTargetAdmin = target?.role_id === 1;
+    const adminCount = users.filter((u) => u.role_id === 1).length;
+    if (isTargetAdmin && adminCount <= 1) {
+      toast.error("Cannot delete the last admin. Assign another admin first.");
+      return;
+    }
     openSecureAction({
       title: "Delete user permanently",
-      description: `This action cannot be undone. ${target?.fullname || "This user"} will be removed permanently. Enter your admin password to confirm.`,
+      description: `This action cannot be undone. ${target?.fullname || "This user"} (${target?.email}) will be removed permanently. Enter your admin password to confirm.`,
       confirmLabel: "Delete user",
       destructive: true,
       run: async (current_password) => {
@@ -366,12 +372,10 @@ export function AdminUsersPanel() {
                             Unblock
                           </Button>
                         )}
-                        {u.role_id !== 1 && (
-                          <Button variant="destructive" size="sm" onClick={() => remove(u.id)} title="Delete">
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </Button>
-                        )}
+                        <Button variant="destructive" size="sm" onClick={() => remove(u.id)} title="Delete">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
                       </div>
                     </td>
                   </tr>

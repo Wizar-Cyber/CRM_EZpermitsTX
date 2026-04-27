@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -31,6 +31,7 @@ export function RoutesTable({
   deleteId,
   onDeleteCancel,
   onDeleteConfirm,
+  onSelectRoute,
 }: RoutesTableProps) {
   return (
     <div className="w-full">
@@ -97,6 +98,16 @@ export function RoutesTable({
                 </td>
                 <td className="p-4">
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                      onClick={() => onSelectRoute?.(route)}
+                      data-testid={`button-view-${route.id}`}
+                      title="View cases"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"

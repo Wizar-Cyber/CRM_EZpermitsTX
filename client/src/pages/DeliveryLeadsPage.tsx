@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Check, Eye, MapPin, RotateCcw, Truck, UserPlus, X } from "lucide-react";
+import { ArrowUpDown, Check, Copy, Eye, MapPin, RotateCcw, Truck, UserPlus, X } from "lucide-react";
+import { formatCompactCount } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 import { apiGet, apiPatch } from "@/lib/api";
 import { useAuth } from "@/features/hooks/useAuth";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -559,189 +559,287 @@ export default function DeliveryLeadsPage() {
     <button
       type="button"
       onClick={() => setSort(field)}
-      className="inline-flex items-center justify-center gap-1 font-semibold text-sm w-full"
+      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 hover:text-white transition-colors cursor-pointer"
     >
       <span>{title}</span>
-      <ArrowUpDown className="w-4 h-4" />
+      <ArrowUpDown className="w-3 h-3 opacity-60" />
     </button>
   );
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-0">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
-        <div className="flex items-center gap-3">
+      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl p-6 mb-6 text-white shadow-lg">
+        <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <Truck className="w-4 h-4 opacity-70" />
-              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Field Operations</span>
+            <div className="flex items-center gap-2 mb-1">
+              <Truck className="w-5 h-5 opacity-80" />
+              <span className="text-sm font-medium opacity-80 uppercase tracking-widest">Field Operations</span>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight">Delivery Leads</h2>
-            <p className="text-blue-200 text-sm mt-0.5">Manage leads in delivery, follow-up and second attempts</p>
+            <h1 className="text-3xl font-bold tracking-tight">Delivery Leads</h1>
+            <p className="text-blue-100 mt-1 text-sm">
+              Manage leads in delivery, follow-up and second attempts
+            </p>
+          </div>
+          <div className="bg-white/15 rounded-xl px-4 py-2.5 text-center border border-white/20">
+            <p className="text-xl font-bold">{formatCompactCount(sortedRows.length)}</p>
+            <p className="text-xs opacity-75 mt-0.5 flex items-center gap-1 justify-center">
+              <Truck className="w-3 h-3" /> {showClosed ? "Closed" : "Cases"}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Tabs and Bulk Actions - Same Row */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        {/* Tabs (pill style) */}
         <Tabs value={mode} onValueChange={(v: string) => setMode(v as typeof mode)} className="w-full md:w-auto">
-          <TabsList className="mb-0">
-            <TabsTrigger value="in-delivery" disabled={showClosed}>In Delivery</TabsTrigger>
-            <TabsTrigger value="second-attempt" disabled={showClosed}>Second Attempt Due</TabsTrigger>
-            <TabsTrigger value="follow-up" disabled={showClosed}>Follow-up</TabsTrigger>
+          <TabsList className="rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+            <TabsTrigger
+              value="in-delivery"
+              disabled={showClosed}
+              className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700"
+            >
+              In Delivery
+            </TabsTrigger>
+            <TabsTrigger
+              value="second-attempt"
+              disabled={showClosed}
+              className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700"
+            >
+              Second Attempt Due
+            </TabsTrigger>
+            <TabsTrigger
+              value="follow-up"
+              disabled={showClosed}
+              className="rounded-lg text-sm font-medium cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700"
+            >
+              Follow-up
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-2">
-          <Button type="button" onClick={copySelectedDetails} disabled={selectedLeads.size === 0} variant="outline">
-            Copy ({selectedLeads.size})
+        {/* Bulk actions */}
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            onClick={copySelectedDetails}
+            disabled={selectedLeads.size === 0}
+            variant="outline"
+            size="sm"
+            className="text-xs cursor-pointer"
+          >
+            <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy ({selectedLeads.size})
           </Button>
-          <Button type="button" onClick={sendSelectedToMap} disabled={selectedLeads.size === 0}>
-            Send to Map
+          <Button
+            type="button"
+            size="sm"
+            className="text-xs cursor-pointer"
+            onClick={sendSelectedToMap}
+            disabled={selectedLeads.size === 0}
+          >
+            <MapPin className="w-3.5 h-3.5 mr-1.5" /> Send to Map
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between gap-4">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by case number or address..."
-          className="w-full md:max-w-xs"
-        />
+      {/* Search */}
+      <div className="flex flex-col md:flex-row justify-between gap-3 mb-6">
+        <div className="relative max-w-xs w-full">
+          <Input
+            placeholder="Search case number or address..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-sm border-slate-200 dark:border-slate-700"
+          />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
       </div>
 
-      <Card className="p-4 overflow-x-auto">
-        {isLoading || (showClosed && closedQuery.isLoading) ? (
-          <p className="text-sm text-muted-foreground">Loading leads...</p>
-        ) : sortedRows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No leads found for the current filter.</p>
-        ) : (
-          <table className="w-full min-w-[700px] table-auto text-sm">
-                  <thead className="bg-muted/40">
-                    <tr className="text-center">
-                      <th className="p-3">
-                        <div className="flex items-center justify-center">
-                          <Checkbox
-                            checked={sortedRows.length > 0 && sortedRows.every((lead) => selectedLeads.has(lead.case_number))}
-                            onCheckedChange={(chk: unknown) => toggleSelectMany(sortedRows, !!chk)}
-                          />
-                        </div>
-                      </th>
-                      <th className="p-3"><SortHeader field="case_number" title="Case #" /></th>
-                      <th className="p-3"><SortHeader field="incident_address" title="Address" /></th>
-                      <th className="p-3"><SortHeader field="created_date_local" title="Created (Lead)" /></th>
-                      <th className="p-3"><SortHeader field="sent_to_delivery_date" title="Sent to Delivery" /></th>
-                      <th className="p-3">
-                        {mode === "follow-up" ? (
-                          <SortHeader field="contacted_at" title="Contact Date" />
-                        ) : (
-                          <SortHeader field="route_name" title="Route" />
-                        )}
-                      </th>
-                      <th className="p-3"><SortHeader field="current_state" title="State" /></th>
-                      <th className="p-3 text-center font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedRows.map((lead) => (
-                      <tr
-                        key={lead.case_number}
-                        className="border-t hover:bg-muted/30 cursor-pointer transition-colors"
-                        onClick={() => openLeadDetailsModal(lead)}
+      {/* Table */}
+      {isLoading || (showClosed && closedQuery.isLoading) ? (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center shadow-sm">
+          <p className="text-sm text-slate-400">Loading leads...</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gradient-to-r from-slate-800 to-slate-700">
+                <th className="p-4 w-10">
+                  <Checkbox
+                    checked={sortedRows.length > 0 && sortedRows.every((lead) => selectedLeads.has(lead.case_number))}
+                    onCheckedChange={(chk: unknown) => toggleSelectMany(sortedRows, !!chk)}
+                    className="border-slate-400 data-[state=checked]:bg-white data-[state=checked]:text-slate-800"
+                  />
+                </th>
+                <th className="p-4 text-left"><SortHeader field="case_number" title="Case #" /></th>
+                <th className="p-4 text-left"><SortHeader field="incident_address" title="Address" /></th>
+                <th className="p-4 text-left"><SortHeader field="created_date_local" title="Created" /></th>
+                <th className="p-4 text-left"><SortHeader field="sent_to_delivery_date" title="Sent to Delivery" /></th>
+                <th className="p-4 text-left">
+                  {mode === "follow-up" ? (
+                    <SortHeader field="contacted_at" title="Contact Date" />
+                  ) : (
+                    <SortHeader field="route_name" title="Route" />
+                  )}
+                </th>
+                <th className="p-4 text-left"><SortHeader field="current_state" title="State" /></th>
+                <th className="p-4 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRows.map((lead, idx) => (
+                <tr
+                  key={lead.case_number}
+                  className={`border-t border-slate-100 dark:border-slate-800 transition-colors cursor-pointer ${
+                    idx % 2 === 0
+                      ? "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      : "bg-slate-50/40 dark:bg-slate-800/20 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  }`}
+                  onClick={() => openLeadDetailsModal(lead)}
+                >
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedLeads.has(lead.case_number)}
+                      onCheckedChange={(chk: unknown) => toggleSelectOne(lead.case_number, !!chk)}
+                    />
+                  </td>
+                  <td className="p-4 font-semibold text-sm text-slate-800 dark:text-slate-200">
+                    {lead.case_number}
+                  </td>
+                  <td className="p-4 text-sm text-slate-500 dark:text-slate-400 max-w-[220px] truncate" title={lead.incident_address || "—"}>
+                    {lead.incident_address || "—"}
+                  </td>
+                  <td className="p-4 text-sm text-slate-500 dark:text-slate-400">{fmtDate(lead.created_date_local)}</td>
+                  <td className="p-4 text-sm text-slate-500 dark:text-slate-400">{fmtDate(lead.sent_to_delivery_date)}</td>
+                  <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
+                    {mode === "follow-up" ? (
+                      fmtDate(lead.contacted_at)
+                    ) : (
+                      <>
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
+                          {lead.route_name || (lead.assigned_route_id ? `Route ${lead.assigned_route_id}` : "—")}
+                        </span>
+                        {isSecondAttempt(lead) ? (
+                          <span className="block text-xs font-semibold text-rose-600 mt-0.5">
+                            Route #{getRouteAttemptNumber(lead)}
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+                      {lead.current_state || "N/A"}
+                    </Badge>
+                  </td>
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-1">
+                      {!showClosed && mode !== "follow-up" && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                          title="Mark as Contacted"
+                          onClick={() => openContactModal(lead)}
+                        >
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        </Button>
+                      )}
+                      {mode === "follow-up" && !showClosed && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                          title="View details"
+                          onClick={() => setViewLead(lead)}
+                        >
+                          <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        </Button>
+                      )}
+                      {!showClosed && mode !== "follow-up" && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 hover:bg-blue-50 dark:hover:bg-blue-950/30 cursor-pointer"
+                          title={mode === "second-attempt" || isSecondAttempt(lead) ? "Send to Map Again" : "Send to Map"}
+                          onClick={() => sendToMap(lead)}
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                        title="Create Client"
+                        onClick={() => openCreateClientModal(lead)}
                       >
-                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center">
-                            <Checkbox
-                              checked={selectedLeads.has(lead.case_number)}
-                              onCheckedChange={(chk: unknown) => toggleSelectOne(lead.case_number, !!chk)}
-                            />
-                          </div>
-                        </td>
-                        <td className="p-3 text-center font-medium">
-                          {lead.case_number}
-                        </td>
-                        <td className="p-3 text-center truncate" title={lead.incident_address || "—"}>
-                          {lead.incident_address || "—"}
-                        </td>
-                        <td className="p-3 text-center">{fmtDate(lead.created_date_local)}</td>
-                        <td className="p-3 text-center">{fmtDate(lead.sent_to_delivery_date)}</td>
-                        <td className="p-3 text-center">
-                          {mode === "follow-up" ? (
-                            fmtDate(lead.contacted_at)
-                          ) : (
-                            <>
-                              {lead.route_name || (lead.assigned_route_id ? `Route ${lead.assigned_route_id}` : "—")}
-                              {isSecondAttempt(lead) ? (
-                                <span className="block text-xs font-semibold text-red-600">
-                                  Route #{getRouteAttemptNumber(lead)}
-                                </span>
-                              ) : null}
-                            </>
-                          )}
-                        </td>
-                        <td className="p-3 text-center">
-                          <Badge variant="outline">{lead.current_state || "N/A"}</Badge>
-                        </td>
-                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-2">
-                            {!showClosed && mode !== "follow-up" && (
-                              <Button size="icon" variant="ghost" title="Mark as Contacted" onClick={() => openContactModal(lead)}>
-                                <Check className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {mode === "follow-up" && !showClosed && (
-                              <Button size="icon" variant="ghost" title="View Contact" onClick={() => setViewLead(lead)}>
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {!showClosed && mode !== "follow-up" && (
-                              <Button size="icon" variant="ghost" title={mode === "second-attempt" || isSecondAttempt(lead) ? "Send to Map Again" : "Send to Map"} onClick={() => sendToMap(lead)}>
-                                <MapPin className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button size="icon" variant="ghost" title="Create Client" onClick={() => openCreateClientModal(lead)}>
-                              <UserPlus className="w-4 h-4" />
-                            </Button>
-                            {!showClosed ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                title="Close Case"
-                                onClick={() => {
-                                  setConfirmAction({
-                                    title: "Close case",
-                                    description: `Are you sure you want to close case #${lead.case_number}?`,
-                                    confirmLabel: "Close case",
-                                    destructive: true,
-                                    onConfirm: () => {
-                                      closeMutation.mutate({ caseNumber: lead.case_number });
-                                      setConfirmAction(null);
-                                    },
-                                  });
-                                }}
-                              >
-                                <X className="w-4 h-4 text-rose-600" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                title="Reopen to Delivery"
-                                onClick={() => reopenMutation.mutate({ caseNumber: lead.case_number })}
-                              >
-                                <RotateCcw className="w-4 h-4 text-indigo-600" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-        )}
-      </Card>
+                        <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
+                      </Button>
+                      {!showClosed ? (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                          title="Close Case"
+                          onClick={() => {
+                            setConfirmAction({
+                              title: "Close case",
+                              description: `Are you sure you want to close case #${lead.case_number}?`,
+                              confirmLabel: "Close case",
+                              destructive: true,
+                              onConfirm: () => {
+                                closeMutation.mutate({ caseNumber: lead.case_number });
+                                setConfirmAction(null);
+                              },
+                            });
+                          }}
+                        >
+                          <X className="w-3.5 h-3.5 text-rose-600" />
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 cursor-pointer"
+                          title="Reopen to Delivery"
+                          onClick={() => reopenMutation.mutate({ caseNumber: lead.case_number })}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {sortedRows.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-12 text-center text-slate-400 text-sm">
+                    No leads match your current filters
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <div className="pt-2">
+      <div className="pt-4">
         <Button
           variant={showClosed ? "default" : "outline"}
           className="w-full"

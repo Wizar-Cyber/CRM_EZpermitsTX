@@ -297,9 +297,10 @@ export function TrendsTab() {
             </div>
           </div>
         ) : (
-          <div className="h-[350px] w-full">
+          <div className="overflow-x-auto">
+          <div style={{ minWidth: Math.max(700, chartRows.length * 70), height: 350 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartRows} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartRows} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
                 <defs>
                   {[...selectedYears].map((year) => {
                     const style = getYearStyle(year);
@@ -313,7 +314,7 @@ export function TrendsTab() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} tickLine={false} axisLine={false} domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2) || 10]} />
                 <Tooltip
                   contentStyle={{
                     fontSize: 12,
@@ -344,6 +345,7 @@ export function TrendsTab() {
                 })}
               </AreaChart>
             </ResponsiveContainer>
+          </div>
           </div>
         )}
       </div>

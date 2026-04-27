@@ -1,8 +1,17 @@
 // src/pages/LeadsPage.tsx
 import { LeadsTable } from "@/components/LeadsTable";
-import { BarChart3, TrendingUp, FileSearch } from "lucide-react";
+import { FileSearch } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/lib/api";
+import { formatCompactCount } from "@/lib/utils";
 
 export default function LeadsPage() {
+  const { data } = useQuery<{ data: any[] }>({
+    queryKey: ["/leads"],
+    queryFn: () => apiGet("/leads"),
+  });
+  const total = data?.data?.length ?? 0;
+
   return (
     <div className="w-full space-y-0">
       {/* Hero Header */}
@@ -18,15 +27,11 @@ export default function LeadsPage() {
               Manage, classify, and track all incoming permit leads
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 text-center border border-white/20">
-              <BarChart3 className="w-4 h-4 mx-auto mb-0.5 opacity-80" />
-              <p className="text-xs opacity-75">Pipeline</p>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 text-center border border-white/20">
-              <TrendingUp className="w-4 h-4 mx-auto mb-0.5 opacity-80" />
-              <p className="text-xs opacity-75">Analytics</p>
-            </div>
+          <div className="bg-white/15 rounded-xl px-4 py-2.5 text-center border border-white/20">
+            <p className="text-xl font-bold">{formatCompactCount(total)}</p>
+            <p className="text-xs opacity-75 mt-0.5 flex items-center gap-1 justify-center">
+              <FileSearch className="w-3 h-3" /> Leads
+            </p>
           </div>
         </div>
       </div>

@@ -879,30 +879,31 @@ router.get("/funnel", authenticate, async (req, res) => {
     const sql = `
       WITH period AS (
         SELECT * FROM houston_311_bcv
-        WHERE created_date_local >= $1::date
+        WHERE is_historical = FALSE
+          AND created_date_local >= $1::date
           AND created_date_local < ($2::date + INTERVAL '1 day')
       )
       SELECT
         (SELECT COUNT(*)::int FROM period) AS captured,
         (SELECT COUNT(*)::int FROM period
            WHERE LOWER(COALESCE(manual_classification,'')) IN ('green','yellow','blue')) AS qualified,
-        (SELECT COUNT(*)::int FROM houston_311_bcv
-           WHERE sent_to_delivery_date >= $1::date
-             AND sent_to_delivery_date < ($2::date + INTERVAL '1 day')) AS routed,
-        (SELECT COUNT(*)::int FROM houston_311_bcv
-           WHERE contacted_at >= $1::date
-             AND contacted_at < ($2::date + INTERVAL '1 day')) AS contacted,
+        (SELECT COUNT(*)::int FROM period
+           WHERE sent_to_delivery_date IS NOT NULL) AS routed,
+        (SELECT COUNT(*)::int FROM period
+           WHERE contacted_at IS NOT NULL) AS contacted,
         (SELECT COUNT(*)::int FROM clientes c
-           INNER JOIN houston_311_bcv l ON l.case_number = c.case_number
+           INNER JOIN period l ON l.case_number = c.case_number
            WHERE c.created_at >= $1::date
              AND c.created_at < ($2::date + INTERVAL '1 day')
              AND c.archived = false) AS clients,
         (SELECT COUNT(*)::int FROM appointments a
            INNER JOIN clientes c ON c.id = a.client_id
+           INNER JOIN period l ON l.case_number = c.case_number
            WHERE a.created_at >= $1::date
              AND a.created_at < ($2::date + INTERVAL '1 day')) AS appointments,
         (SELECT COUNT(*)::int FROM appointments a
            INNER JOIN clientes c ON c.id = a.client_id
+           INNER JOIN period l ON l.case_number = c.case_number
            WHERE a.status IN ('visited','done')
              AND a.date_time >= $1::date
              AND a.date_time < ($2::date + INTERVAL '1 day')) AS visits_completed
@@ -1040,8 +1041,9 @@ router.get("/green-leads", authenticate, async (req, res) => {
 
     const params = [];
     let where = `
-      LOWER(COALESCE(l.manual_classification, l.consulta, '')) = 'green'
+      LOWER(COALESCE(l.manual_classification, '')) = 'green'
       AND COALESCE(l.current_state,'NEW') NOT IN ('IN_DELIVERY','EN_REPARTO','SECOND_ATTEMPT','CONTACTED','CLOSED')
+      AND l.classified_at >= '2025-04-20'::date
     `;
 
     if (search) {
@@ -1069,7 +1071,8 @@ router.get("/green-leads", authenticate, async (req, res) => {
           ELSE NULL
         END AS days_waiting
       FROM houston_311_bcv l
-      WHERE ${where}
+      WHERE l.is_historical = FALSE
+        AND ${where}
       ORDER BY ${orderBy}
       LIMIT 500
     `;

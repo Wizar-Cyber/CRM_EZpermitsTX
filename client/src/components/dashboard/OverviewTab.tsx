@@ -22,6 +22,7 @@ import {
 } from "recharts";
 import { KpiCard } from "./KpiCard";
 import { apiGet } from "@/lib/api";
+import { formatCompactCount } from "@/lib/utils";
 
 export interface LeadQualityItem {
   name: string;
@@ -298,7 +299,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
           }
           icon={<TrendingUp className="w-4 h-4" />}
           iconBg="bg-blue-50 text-blue-500"
-          subtitle="Leads → Clientes"
+          subtitle="Leads to Clients"
           sparkline={{ color: "#3b82f6", gradientId: "spk-conv", data: [20, 10, 30, 15, 25, 15, 20] }}
         />
         <KpiCard
@@ -342,9 +343,9 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
           </div>
 
           <div className="overflow-x-auto">
-            <div style={{ minWidth: Math.max(600, (chartData?.length ?? 0) * 60), height: 300 }}>
+            <div style={{ minWidth: Math.max(600, (chartData?.length ?? 0) * 60), height: 320 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
@@ -363,7 +364,7 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   dy={10}
                 />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748b" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748b" }} domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2) || 10]} />
                 <Tooltip
                   contentStyle={{
                     borderRadius: "8px",
@@ -375,28 +376,28 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                   type="monotone"
                   dataKey="new_leads"
                   name="New Leads"
-                  stackId="1"
                   stroke="#2563eb"
                   fill="url(#colorNew)"
                   strokeWidth={2}
+                  fillOpacity={0.3}
                 />
                 <Area
                   type="monotone"
                   dataKey="appointments_created"
                   name="Appointments"
-                  stackId="1"
                   stroke="#6366f1"
                   fill="url(#colorAppt)"
                   strokeWidth={2}
+                  fillOpacity={0.3}
                 />
                 <Area
                   type="monotone"
                   dataKey="visits_completed"
                   name="Visits"
-                  stackId="1"
                   stroke="#94a3b8"
                   fill="#e2e8f0"
                   strokeWidth={2}
+                  fillOpacity={0.3}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -432,29 +433,29 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                     <path d="M 0,0 L 400,0 C 330,150 290,250 260,350 L 140,350 C 110,250 70,150 0,0 Z" />
                   </clipPath>
                   <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#1e3a8a" />
-                    <stop offset="50%" stopColor="#60a5fa" />
-                    <stop offset="100%" stopColor="#1e3a8a" />
+                    <stop offset="0%" stopColor="#0f172a" />
+                    <stop offset="50%" stopColor="#475569" />
+                    <stop offset="100%" stopColor="#0f172a" />
                   </linearGradient>
                   <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#b45309" />
-                    <stop offset="50%" stopColor="#fde047" />
-                    <stop offset="100%" stopColor="#b45309" />
+                    <stop offset="0%" stopColor="#1e3a8a" />
+                    <stop offset="50%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#1e3a8a" />
                   </linearGradient>
                   <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#059669" />
-                    <stop offset="50%" stopColor="#6ee7b7" />
-                    <stop offset="100%" stopColor="#059669" />
+                    <stop offset="0%" stopColor="#0e7490" />
+                    <stop offset="50%" stopColor="#22d3ee" />
+                    <stop offset="100%" stopColor="#0e7490" />
                   </linearGradient>
                   <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#047857" />
+                    <stop offset="50%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#047857" />
+                  </linearGradient>
+                  <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="#065f46" />
                     <stop offset="50%" stopColor="#34d399" />
                     <stop offset="100%" stopColor="#065f46" />
-                  </linearGradient>
-                  <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#022c22" />
-                    <stop offset="50%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#022c22" />
                   </linearGradient>
                 </defs>
 
@@ -501,13 +502,13 @@ export function OverviewTab({ start, end }: OverviewTabProps) {
                           textAnchor="middle"
                           style={{ pointerEvents: "none" }}
                         >
-                          {step.value}
+                          {formatCompactCount(step.value)}
                         </text>
                         {dropPct !== null && dropPct > 0 && (
                           <text
                             x="200"
                             y={y + height - 4}
-                            fill="rgba(255,255,255,0.85)"
+                            fill="rgba(255,255,255,0.9)"
                             fontSize="10"
                             fontWeight="600"
                             textAnchor="middle"
