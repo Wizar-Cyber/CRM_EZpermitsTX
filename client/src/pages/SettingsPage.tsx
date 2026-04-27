@@ -1,94 +1,101 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link2, Lock, Settings, ShieldCheck, User } from "lucide-react";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import {
+  Settings,
+  Lock,
+  User,
+  Palette,
+  Link2,
+  ShieldCheck,
+  Ban,
+  CheckCircle2,
+  Trash2,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost, apiPut } from "@/lib/api";
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from "@/lib/api";
 import { useAuth } from "@/features/hooks/useAuth";
-import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
-import { SecuritySettingsTab, PasswordFormState } from "@/components/settings/SecuritySettingsTab";
-import { IntegrationsSettingsTab } from "@/components/settings/IntegrationsSettingsTab";
-import { AdminUsersPanel } from "@/components/settings/AdminUsersPanel";
-import { AuditEventsPanel } from "@/components/settings/AuditEventsPanel";
-import { ProfileState, SettingsState } from "@/components/settings/types";
 
-const PASSWORD_RULES = [
-  { label: "At least 8 characters", test: (value: string) => value.length >= 8 },
-  { label: "One uppercase letter", test: (value: string) => /[A-Z]/.test(value) },
-  { label: "One lowercase letter", test: (value: string) => /[a-z]/.test(value) },
-  { label: "One digit", test: (value: string) => /\d/.test(value) },
-  { label: "One special character", test: (value: string) => /[^\w\s]/.test(value) },
-];
-
-const getPasswordViolations = (value: string) =>
-  PASSWORD_RULES.filter((rule) => !rule.test(value)).map((rule) => rule.label);
-
-const ALLOWED_THEMES = new Set(["light", "dark", "system"]);
-const ALLOWED_LANGUAGES = new Set(["en", "es"]);
-const ALLOWED_DATE_FORMATS = new Set(["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY"]);
+type UserRow = {
+  id: number;
+  fullname: string;
+  email: string;
+  phone: string | null;
+  role_id: number | null;
+  document_type: string | null;
+  document_number: string | null;
+  created_at: string;
+  is_approved: boolean;
+  is_blocked: boolean;
+  role_name?: string | null;
+};
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [settings, setSettings] = useState<SettingsState>({
+  const [settings, setSettings] = useState({
     theme: "light",
-    email_notifications: true,
-    sms_notifications: false,
+    email_notifications: true,   // <- ya no se muestra en UI
+    sms_notifications: false,    // <- ya no se muestra en UI
     language: "en",
   });
-  const [profile, setProfile] = useState<ProfileState>({
-    fullname: "",
-    email: "",
-    phone: "",
-    recovery_email: "",
-    role_id: null,
-    role: null,
-    language: "en",
-    timezone: "America/Chicago",
-    date_format: "YYYY-MM-DD",
-    avatar_url: "",
-    version: 1,
-  });
-  const [recoveryEmailDraft, setRecoveryEmailDraft] = useState("");
-  const [savingRecoveryEmail, setSavingRecoveryEmail] = useState(false);
 
-  const [passwordForm, setPasswordForm] = useState<PasswordFormState>({
-    current: "",
-    next: "",
-    confirm: "",
-  });
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwLoading, setPwLoading] = useState(false);
 
+  const handleUpdatePassword = async () => {
+    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+    try {
+      setPwLoading(true);
+      await apiPost("/auth/change-password", {
+        currentPassword: pwForm.current,
+        newPassword: pwForm.next,
+      });
+      toast.success("Password updated successfully");
+      setPwForm({ current: "", next: "", confirm: "" });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update password");
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  // 🔐 Detectar admin de forma robusta
   const isAdmin = useMemo(
     () =>
       !!user &&
-      ((user as any).role_id === 1 ||
+      (
+        (user as any).role_id === 1 ||
         (user as any).role === "admin" ||
-        (user as any).role_name === "admin"),
+        (user as any).role_name === "admin"
+      ),
     [user]
   );
 
+  // 🔄 Cargar configuración desde el backend
   useEffect(() => {
-    const fetchSettingsAndProfile = async () => {
+    const fetchSettings = async () => {
       try {
         setLoading(true);
-        const [settingsData, profileData] = await Promise.all([
-          apiGet<Partial<SettingsState>>("/settings"),
-          apiGet<Partial<ProfileState>>("/settings/profile"),
-        ]);
-
-        setSettings((prev) => ({ ...prev, ...settingsData }));
-        setProfile((prev) => ({
-          ...prev,
-          ...profileData,
-          phone: String(profileData?.phone || ""),
-          recovery_email: String(profileData?.recovery_email || ""),
-          avatar_url: String(profileData?.avatar_url || ""),
-        }));
-        setRecoveryEmailDraft(String(profileData?.recovery_email || ""));
+        const data = await apiGet("/settings");
+        setSettings((prev) => ({ ...prev, ...data }));
       } catch (err: any) {
         console.error("Error fetching settings:", err);
         toast.error("Error loading settings");
@@ -96,309 +103,401 @@ export default function SettingsPage() {
         setLoading(false);
       }
     };
-
-    fetchSettingsAndProfile();
+    fetchSettings();
   }, []);
 
-  const validateLocalSettings = () => {
-    const nextTheme = String(settings.theme || "").toLowerCase().trim();
-    const nextLanguage = String(settings.language || "").toLowerCase().trim();
-
-    if (!ALLOWED_THEMES.has(nextTheme)) {
-      return "Theme must be light, dark or system";
-    }
-    if (!ALLOWED_LANGUAGES.has(nextLanguage)) {
-      return "Language must be en or es";
-    }
-    return null;
-  };
-
-  const validateLocalProfile = () => {
-    const fullname = String(profile.fullname || "").trim();
-    if (fullname.length < 2 || fullname.length > 120) {
-      return "Full name must be between 2 and 120 characters";
-    }
-
-    const phone = String(profile.phone || "").trim();
-    if (phone && !/^\+?[0-9()\-\s]{7,20}$/.test(phone)) {
-      return "Phone format is invalid";
-    }
-
-    const lang = String(profile.language || "").toLowerCase().trim();
-    if (!ALLOWED_LANGUAGES.has(lang)) {
-      return "Language must be en or es";
-    }
-
-    const tz = String(profile.timezone || "").trim();
-    if (!tz) {
-      return "Timezone is required";
-    }
-
-    const df = String(profile.date_format || "").trim();
-    if (!ALLOWED_DATE_FORMATS.has(df)) {
-      return "Date format is invalid";
-    }
-
-    const avatar = String(profile.avatar_url || "").trim();
-    if (avatar) {
-      try {
-        const parsed = new URL(avatar);
-        if (!(parsed.protocol === "http:" || parsed.protocol === "https:")) {
-          return "Avatar URL must be http(s)";
-        }
-      } catch {
-        return "Avatar URL is invalid";
-      }
-    }
-
-    const recoveryEmail = String(profile.recovery_email || "").trim().toLowerCase();
-    if (recoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
-      return "Recovery email is invalid";
-    }
-
-    return null;
-  };
-
-  const handleSaveRecoveryEmail = async () => {
-    const recoveryEmail = String(recoveryEmailDraft || "").trim().toLowerCase();
-    if (recoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
-      toast.error("Recovery email is invalid");
-      return;
-    }
-
-    try {
-      setSavingRecoveryEmail(true);
-      const response = await apiPut<{ success: boolean; profile: ProfileState }>(
-        "/settings/profile",
-        {
-          recovery_email: recoveryEmail,
-          version: profile.version,
-        }
-      );
-
-      if (response?.profile) {
-        setProfile((prev) => ({
-          ...prev,
-          ...response.profile,
-          phone: String(response.profile.phone || ""),
-          recovery_email: String(response.profile.recovery_email || ""),
-          avatar_url: String(response.profile.avatar_url || ""),
-        }));
-        setRecoveryEmailDraft(String(response.profile.recovery_email || ""));
-      }
-      toast.success("Recovery email updated");
-    } catch (err: any) {
-      console.error("Error saving recovery email:", err);
-      toast.error(err?.message || "Failed to update recovery email");
-    } finally {
-      setSavingRecoveryEmail(false);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    const localError = validateLocalProfile();
-    if (localError) {
-      toast.error(localError);
-      return;
-    }
-
-    try {
-      setSavingProfile(true);
-      const payload = {
-        fullname: String(profile.fullname || "").trim(),
-        phone: String(profile.phone || "").trim(),
-        recovery_email: String(profile.recovery_email || "").trim().toLowerCase(),
-        language: String(profile.language || "").toLowerCase().trim(),
-        timezone: String(profile.timezone || "").trim(),
-        date_format: String(profile.date_format || "").trim(),
-        avatar_url: String(profile.avatar_url || "").trim(),
-        version: profile.version,
-      };
-
-      const response = await apiPut<{ success: boolean; profile: ProfileState }>(
-        "/settings/profile",
-        payload
-      );
-
-      if (response?.profile) {
-        setProfile((prev) => ({
-          ...prev,
-          ...response.profile,
-          phone: String(response.profile.phone || ""),
-          recovery_email: String(response.profile.recovery_email || ""),
-          avatar_url: String(response.profile.avatar_url || ""),
-        }));
-        setRecoveryEmailDraft(String(response.profile.recovery_email || ""));
-        setSettings((prev) => ({ ...prev, language: response.profile.language }));
-      }
-
-      toast.success("Profile updated successfully!");
-    } catch (err: any) {
-      console.error("Error saving profile:", err);
-      const message = String(err?.message || "");
-      if (message.toLowerCase().includes("invalid profile payload")) {
-        toast.error("Invalid profile data. Please review your inputs.");
-      } else if (message.toLowerCase().includes("another session")) {
-        toast.error("Profile was updated from another session. Refresh and try again.");
-      } else {
-        toast.error(message || "Failed to save profile");
-      }
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
+  // 💾 Guardar cambios en el backend
   const handleSaveSettings = async () => {
-    const localError = validateLocalSettings();
-    if (localError) {
-      toast.error(localError);
-      return;
-    }
-
     try {
-      setSavingSettings(true);
-      const payload = {
-        theme: String(settings.theme).toLowerCase(),
-        language: String(settings.language).toLowerCase(),
-        email_notifications: !!settings.email_notifications,
-        sms_notifications: !!settings.sms_notifications,
-        version: settings.version,
-      };
-
-      const response = await apiPut<{ success: boolean; settings: SettingsState }>(
-        "/settings",
-        payload
-      );
-
-      if (response?.settings) {
-        setSettings((prev) => ({ ...prev, ...response.settings }));
-      }
+      await apiPut("/settings", settings);
       toast.success("Settings updated successfully!");
     } catch (err: any) {
       console.error("Error saving settings:", err);
-      const message = String(err?.message || "");
-      if (message.toLowerCase().includes("invalid settings payload")) {
-        toast.error("Invalid settings payload. Please review theme/language values.");
-      } else if (message.toLowerCase().includes("another session")) {
-        toast.error("Settings were updated from another session. Reload settings and try again.");
-      } else {
-        toast.error(message || "Failed to save settings");
+      toast.error("Failed to save settings");
+    }
+  };
+
+  // ================================
+  // Panel de Admin (inline component)
+  // ================================
+  function AdminUsersPanel() {
+    const [users, setUsers] = useState<UserRow[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
+    const loadUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        const res = await apiGet<{ data: UserRow[] }>("/admin/users");
+        setUsers(res.data || []);
+      } catch (err: any) {
+        console.error(err);
+        toast.error("No se pudieron cargar los usuarios (¿eres admin?)");
+      } finally {
+        setLoadingUsers(false);
       }
-    } finally {
-      setSavingSettings(false);
-    }
-  };
+    };
 
-  const handlePasswordChange = async (event?: FormEvent) => {
-    event?.preventDefault();
-    const { current, next, confirm } = passwordForm;
+    useEffect(() => {
+      loadUsers();
+    }, []);
 
-    if (!current || !next || !confirm) {
-      toast.error("Please fill in all password fields");
-      return;
-    }
-    if (next !== confirm) {
-      toast.error("Password confirmation does not match");
-      return;
-    }
-    if (current === next) {
-      toast.error("New password must be different from current password");
-      return;
-    }
+    const approve = async (id: number) => {
+      try {
+        await apiPatch(`/admin/users/${id}/approve`, {});
+        toast.success("Usuario aprobado");
+        loadUsers();
+      } catch (err: any) {
+        toast.error(err.message || "Error aprobando usuario");
+      }
+    };
 
-    const violations = getPasswordViolations(next);
-    if (violations.length) {
-      setPasswordErrors(violations);
-      toast.error("New password does not meet the security requirements");
-      return;
-    }
+    const block = async (id: number) => {
+      try {
+        await apiPatch(`/admin/users/${id}/block`, { blocked: true });
+        toast.success("Usuario bloqueado");
+        loadUsers();
+      } catch (err: any) {
+        toast.error(err.message || "Error bloqueando usuario");
+      }
+    };
 
-    try {
-      setPasswordErrors([]);
-      setChangingPassword(true);
-      await apiPost("/auth/change-password", {
-        currentPassword: current,
-        newPassword: next,
-      });
-      toast.success("Password updated successfully");
-      setPasswordForm({ current: "", next: "", confirm: "" });
-    } catch (err: any) {
-      console.error("Error updating password:", err);
-      toast.error(err.message || "Failed to update password");
-    } finally {
-      setChangingPassword(false);
-    }
-  };
+    const unblock = async (id: number) => {
+      try {
+        await apiPatch(`/admin/users/${id}/block`, { blocked: false });
+        toast.success("Usuario desbloqueado");
+        loadUsers();
+      } catch (err: any) {
+        toast.error(err.message || "Error desbloqueando usuario");
+      }
+    };
 
-  const tabsCols = isAdmin ? "grid-cols-4" : "grid-cols-3";
+    const remove = async (id: number) => {
+      if (!confirm("¿Eliminar este usuario definitivamente?")) return;
+      try {
+        await apiDelete(`/admin/users/${id}`);
+        toast.success("Usuario eliminado");
+        loadUsers();
+      } catch (err: any) {
+        toast.error(err.message || "Error eliminando usuario");
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" /> User Administration
+          </h2>
+          <Button variant="outline" size="sm" onClick={loadUsers}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Refrescar
+          </Button>
+        </div>
+
+        {loadingUsers ? (
+          <p className="text-sm text-muted-foreground">Cargando usuarios...</p>
+        ) : (
+          <div className="rounded-xl border overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr className="text-left">
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Name</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Email</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Role</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Status</th>
+                  <th className="p-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Created</th>
+                  <th className="p-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => {
+                  const roleLabel =
+                    u.role_name || (u.role_id === 1 ? "admin" : "user");
+                  const estado =
+                    u.is_blocked
+                      ? "Bloqueado"
+                      : u.is_approved
+                      ? "Aprobado"
+                      : "Pendiente";
+                  return (
+                    <tr key={u.id} className="border-t hover:bg-muted/40 transition-colors">
+                      <td className="p-3">{u.fullname}</td>
+                      <td className="p-3">{u.email}</td>
+                      <td className="p-3 capitalize">{roleLabel}</td>
+                      <td className="p-3">{estado}</td>
+                      <td className="p-3">
+                        {new Date(u.created_at).toLocaleString()}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex gap-2 justify-end">
+                          {!u.is_approved && !u.is_blocked && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => approve(u.id)}
+                              title="Aprobar"
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                              Aprobar
+                            </Button>
+                          )}
+                          {!u.is_blocked ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => block(u.id)}
+                              title="Bloquear"
+                            >
+                              <Ban className="w-4 h-4 mr-2 text-red-600" />
+                              Bloquear
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => unblock(u.id)}
+                              title="Desbloquear"
+                            >
+                              <Ban className="w-4 h-4 mr-2" />
+                              Desbloquear
+                            </Button>
+                          )}
+                          {u.role_id !== 1 && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => remove(u.id)}
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {users.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-sm text-muted-foreground" colSpan={6}>
+                      No hay usuarios.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Para la grilla de Tabs: 4 tabs base; si es admin mostramos 5
+  const tabsCols = isAdmin ? "grid-cols-5" : "grid-cols-4";
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold flex items-center gap-3">
-        <Settings className="w-8 h-8 text-primary" />
-        Settings
-      </h1>
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Settings className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">System</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+            <p className="text-slate-300 text-sm mt-0.5">Manage your account, appearance, and integrations</p>
+          </div>
+          <div className="bg-white/10 rounded-xl px-4 py-2 border border-white/20">
+            <p className="text-xs opacity-70">{user?.fullname || "User"}</p>
+            <p className="text-[10px] opacity-50 capitalize">{(user as any)?.role_name || "Member"}</p>
+          </div>
+        </div>
+      </div>
 
       <Card className="rounded-2xl shadow-sm p-6">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className={`mb-6 ${tabsCols} grid`}>
-            <TabsTrigger value="profile">
-              <User className="w-4 h-4 mr-2" /> Profile
+          <TabsList className={`mb-6 ${tabsCols} grid bg-slate-100 dark:bg-slate-800 p-1 rounded-xl`}>
+            <TabsTrigger value="profile" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <User className="w-3.5 h-3.5 mr-1.5" /> Profile
             </TabsTrigger>
-            <TabsTrigger value="security">
-              <Lock className="w-4 h-4 mr-2" /> Security
+            <TabsTrigger value="security" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Lock className="w-3.5 h-3.5 mr-1.5" /> Security
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Palette className="w-3.5 h-3.5 mr-1.5" /> Appearance
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+              <Link2 className="w-3.5 h-3.5 mr-1.5" /> Integrations
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="admin">
-                <ShieldCheck className="w-4 h-4 mr-2" /> Admin
+              <TabsTrigger value="admin" className="rounded-lg text-xs cursor-pointer data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700">
+                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> Admin
               </TabsTrigger>
             )}
-            <TabsTrigger value="integrations">
-              <Link2 className="w-4 h-4 mr-2" /> Integrations
-            </TabsTrigger>
           </TabsList>
 
+          {/* 👤 Profile */}
           <TabsContent value="profile">
-            <ProfileSettingsTab
-              profile={profile}
-              setProfile={setProfile}
-              settings={settings}
-              setSettings={setSettings}
-              loading={loading || savingProfile}
-              onSave={handleSaveProfile}
-              onSaveAppearance={handleSaveSettings}
-            />
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold mb-4">User Profile</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="fullname">Full Name</Label>
+                  <Input id="fullname" value={user?.fullname || ""} disabled />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input id="email" value={user?.email || ""} disabled />
+                </div>
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <Input
+                    id="role"
+                    value={
+                      ((user as any)?.role_name as string) ??
+                      ((user as any)?.role as string) ??
+                      ((user as any)?.role_id === 1 ? "admin" : "user")
+                    }
+                    disabled
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="language">Language</Label>
+                  <Input
+                    id="language"
+                    placeholder="en / es"
+                    value={settings.language}
+                    onChange={(e) =>
+                      setSettings({ ...settings, language: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <Button
+                className="mt-4 rounded-xl"
+                onClick={handleSaveSettings}
+                disabled={loading}
+              >
+                Save Changes
+              </Button>
+            </div>
           </TabsContent>
 
+          {/* 🔒 Security */}
           <TabsContent value="security">
-            <SecuritySettingsTab
-              form={passwordForm}
-              setForm={setPasswordForm}
-              passwordErrors={passwordErrors}
-              setPasswordErrors={setPasswordErrors}
-              changingPassword={changingPassword}
-              onSubmit={handlePasswordChange}
-              onForceLogout={logout}
-              recoveryEmail={profile.recovery_email || ""}
-              recoveryEmailDraft={recoveryEmailDraft}
-              setRecoveryEmailDraft={setRecoveryEmailDraft}
-              onSaveRecoveryEmail={handleSaveRecoveryEmail}
-              savingRecoveryEmail={savingRecoveryEmail}
-            />
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold mb-4">Security Settings</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input id="currentPassword" type="password" value={pwForm.current} onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input id="newPassword" type="password" value={pwForm.next} onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input id="confirmPassword" type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} />
+                </div>
+              </div>
+              <Button className="mt-4 rounded-xl" onClick={handleUpdatePassword} disabled={pwLoading}>
+                {pwLoading ? "Updating..." : "Update Password"}
+              </Button>
+            </div>
           </TabsContent>
 
+          {/* 🎨 Appearance */}
+          <TabsContent value="appearance">
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold mb-4">Theme</h2>
+
+              <div className="flex items-center justify-between">
+                <Label>Current Theme</Label>
+                <span className="capitalize">{settings.theme}</span>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <Label>Dark Mode</Label>
+                <Switch
+                  checked={settings.theme === "dark"}
+                  onCheckedChange={(v) => {
+                    const newTheme = v ? "dark" : "light";
+                    setSettings({ ...settings, theme: newTheme });
+                    localStorage.setItem("theme", newTheme);
+                    document.documentElement.classList.toggle(
+                      "dark",
+                      newTheme === "dark"
+                    );
+                  }}
+                />
+              </div>
+
+              <Button
+                className="mt-6 rounded-xl"
+                onClick={handleSaveSettings}
+                disabled={loading}
+              >
+                Apply Theme
+              </Button>
+            </div>
+          </TabsContent>
+
+          {/* 🔗 Integrations */}
+          <TabsContent value="integrations">
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold mb-4">CRM Integrations</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Manage connected services and third-party tools.
+              </p>
+
+              <ul className="space-y-3">
+                <li className="flex justify-between items-center border rounded-xl p-3">
+                  <div>
+                    <span className="font-medium">Google Calendar</span>
+                    <p className="text-xs text-muted-foreground">
+                      Sync meetings and schedules.
+                    </p>
+                  </div>
+                  <Button variant="outline" className="rounded-xl" disabled title="Coming soon">
+                    Connect
+                  </Button>
+                </li>
+
+                <li className="flex justify-between items-center border rounded-xl p-3">
+                  <div>
+                    <span className="font-medium">Slack</span>
+                    <p className="text-xs text-muted-foreground">
+                      Receive CRM notifications directly.
+                    </p>
+                  </div>
+                  <Button variant="outline" className="rounded-xl" disabled title="Coming soon">
+                    Connect
+                  </Button>
+                </li>
+
+                <li className="flex justify-between items-center border rounded-xl p-3">
+                  <div>
+                    <span className="font-medium">WhatsApp Business</span>
+                    <p className="text-xs text-muted-foreground">
+                      Enable message-based client interactions.
+                    </p>
+                  </div>
+                  <Button variant="outline" className="rounded-xl" disabled title="Coming soon">
+                    Connect
+                  </Button>
+                </li>
+              </ul>
+            </div>
+          </TabsContent>
+
+          {/* 🛡️ Admin (solo si isAdmin) */}
           {isAdmin && (
             <TabsContent value="admin">
-              <div className="space-y-8">
-                <AdminUsersPanel />
-                <AuditEventsPanel />
-              </div>
+              <AdminUsersPanel />
             </TabsContent>
           )}
-
-          <TabsContent value="integrations">
-            <IntegrationsSettingsTab />
-          </TabsContent>
         </Tabs>
       </Card>
     </div>

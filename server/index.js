@@ -17,6 +17,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import adminRouter from "./routes/admin.js";
 
 import orsRouter from "./routes/ors.js";
+import analyticsRouter from "./routes/analytics.js";
 
 const SECOND_ATTEMPT_DAYS = Number.parseInt(process.env.SECOND_ATTEMPT_DAYS || "15", 10);
 
@@ -27,7 +28,13 @@ const app = express();
 // Middlewares
 const defaultAllowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:5176",
   "http://69.62.69.98:8081",
 ];
 
@@ -107,6 +114,7 @@ app.use("/api/appointments", appointmentsRouter);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/admin", adminRouter);
 app.use("/api/ors", orsRouter);
+app.use("/api/analytics", analyticsRouter);
 
 // Perfil del usuario autenticado
 app.get("/api/me", authenticate, async (req, res) => {
@@ -151,6 +159,7 @@ app.listen(PORT, async () => {
         `SELECT case_number, assigned_route_id, current_state
            FROM houston_311_bcv
           WHERE contacted_at IS NULL
+            AND is_historical = FALSE
             AND current_state IN ('IN_DELIVERY', 'NO_RESPONSE')
             AND (
               (second_attempt_due_at IS NOT NULL AND second_attempt_due_at <= NOW())

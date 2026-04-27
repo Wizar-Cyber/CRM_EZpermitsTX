@@ -333,3 +333,92 @@
     inset: -1px;
   }
 }
+/* ── React Big Calendar — EZpermitsTX brand styling ── */
+.rbc-toolbar button {
+  color: #103360;
+  border-color: #103360;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.rbc-toolbar button:hover {
+  background-color: #103360 !important;
+  color: white !important;
+  border-color: #103360 !important;
+}
+.rbc-toolbar button.rbc-active,
+.rbc-toolbar button.rbc-active:hover,
+.rbc-toolbar button.rbc-active:focus {
+  background-color: #103360 !important;
+  color: white !important;
+  border-color: #103360 !important;
+  box-shadow: 0 1px 4px rgba(16,51,96,0.25);
+}
+.rbc-toolbar-label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #103360;
+}
+.rbc-today {
+  background-color: rgba(16, 51, 96, 0.06) !important;
+}
+.rbc-selected-cell {
+  background-color: rgba(16, 51, 96, 0.10) !important;
+}
+.rbc-header {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #103360;
+  padding: 8px 4px;
+  border-bottom: 2px solid rgba(16, 51, 96, 0.12);
+}
+.rbc-month-row:hover {
+  background-color: rgba(16, 51, 96, 0.01);
+}
+.rbc-day-bg:hover {
+  background-color: rgba(16, 51, 96, 0.04);
+  cursor: pointer;
+}
+
+/* Dark mode calendar */
+.dark .rbc-toolbar button {
+  color: #93b4dd;
+  border-color: #2a5a9a;
+}
+.dark .rbc-toolbar button:hover,
+.dark .rbc-toolbar button.rbc-active {
+  background-color: #1a4a8a !important;
+  color: white !important;
+  border-color: #1a4a8a !important;
+}
+.dark .rbc-toolbar-label {
+  color: #93b4dd;
+}
+.dark .rbc-header {
+  color: #7aa8d6;
+  border-bottom-color: rgba(147, 180, 221, 0.15);
+}
+.dark .rbc-today {
+  background-color: rgba(26, 74, 138, 0.15) !important;
+}
+
+/* ── Sidebar nav items ── */
+/* Sidebar nav — override shadcn defaults */
+[data-sidebar="menu-button"].sidebar-nav-item {
+  border-radius: 0.75rem;
+  transition: background 0.15s, color 0.15s;
+  color: hsl(var(--sidebar-foreground) / 0.65);
+}
+[data-sidebar="menu-button"].sidebar-nav-item:hover,
+[data-sidebar="menu-button"].sidebar-nav-item:focus-visible {
+  background: linear-gradient(to right, #103360, #1565c0) !important;
+  color: white !important;
+}
+[data-sidebar="menu-button"].sidebar-nav-item[data-active="true"],
+[data-sidebar="menu-button"].sidebar-nav-item.sidebar-nav-active {
+  background: linear-gradient(to right, #103360, #1565c0) !important;
+  color: white !important;
+  font-weight: 600;
+}

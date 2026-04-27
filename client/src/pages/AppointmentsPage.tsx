@@ -28,17 +28,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
 import { toast } from "sonner";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
-
-type ConfirmAction = {
-  title: string;
-  description: string;
-  confirmLabel?: string;
-  destructive?: boolean;
-  onConfirm: () => void;
-};
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -85,8 +76,6 @@ export default function AppointmentsPage() {
   const [tempNote, setTempNote] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [newNote, setNewNote] = useState("");
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
   // 🔄 Cargar citas
   const refreshAppointments = useCallback(async () => {
@@ -135,8 +124,7 @@ useEffect(() => {
       toast.info("Cannot create appointments in the past.");
       return;
     }
-    const safeStart = start < new Date() ? addMinutes(new Date(), 5) : start;
-    setSelectedEvent({ date_time: safeStart.toISOString() });
+    setSelectedEvent({ date_time: start.toISOString() });
     setShowModal(true);
   }, []);
 
@@ -179,7 +167,7 @@ useEffect(() => {
       refreshAppointments();
     } catch (err) {
       console.error("❌ Error saving appointment:", err);
-      toast.error(err instanceof Error ? err.message : "Error saving appointment");
+      toast.error("Error saving appointment");
     }
   };
 
@@ -252,6 +240,7 @@ useEffect(() => {
   // ❌ Eliminar nota adicional
   const handleDeleteExtraNote = async (noteId: number) => {
     if (!clientInfo?.id) return;
+    if (!confirm("Delete this note?")) return;
     try {
       await apiDelete(`/appointments/${clientInfo.id}/notes/${noteId}`);
       const updatedNotes = clientInfo.notes?.filter((n) => n.id !== noteId) || [];
@@ -314,33 +303,42 @@ useEffect(() => {
 
   return (
     <div className="w-full space-y-4 relative">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-2xl font-semibold">Appointments</h2>
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1 bg-muted rounded-lg p-1">
-            {[{ name: "Month", view: Views.MONTH }, { name: "Week", view: Views.WEEK }, { name: "Day", view: Views.DAY }].map(({ name, view: v }) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                  view === v ? "bg-background shadow-sm" : ""
-                }`}
-              >
-                {name}
-              </button>
-            ))}
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <CalendarCheck className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Schedule</span>
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Appointments</h2>
+            <p className="text-blue-200 text-sm mt-0.5">Manage client visits and scheduled appointments</p>
           </div>
-          <Button
-            onClick={() => {
-              setSelectedEvent({ date_time: addMinutes(new Date(), 5).toISOString() });
-              setShowModal(true);
-            }}
-            className="rounded-2xl"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Appointment
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1 bg-white/15 backdrop-blur-sm rounded-xl p-1 border border-white/20">
+              {[{ name: "Month", view: Views.MONTH }, { name: "Week", view: Views.WEEK }, { name: "Day", view: Views.DAY }].map(({ name, view: v }) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+                    view === v ? "bg-white text-[#103360] shadow-sm" : "text-white/80 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={() => {
+                setSelectedEvent({ date_time: new Date().toISOString() });
+                setShowModal(true);
+              }}
+              className="bg-white text-[#103360] hover:bg-violet-50 font-semibold border-0 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Appointment
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -374,7 +372,7 @@ useEffect(() => {
             </h3>
             <button
               onClick={() => setClientInfo(null)}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -421,7 +419,7 @@ useEffect(() => {
                 placeholder="Write an optional note..."
               />
             ) : (
-              <p className="text-sm bg-muted/50 p-2 rounded-md">
+              <p className="text-sm bg-muted/50 border border-border/60 p-2.5 rounded-lg">
                 {clientInfo.note || "No notes yet"}
               </p>
             )}
@@ -446,35 +444,24 @@ useEffect(() => {
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {clientInfo.notes?.length ? (
                 clientInfo.notes.map((n) => (
-                  <div key={n.id} className="p-2 bg-muted/50 rounded-md text-sm flex justify-between items-start">
+                  <div key={n.id} className="p-2.5 bg-muted/40 border border-border/50 rounded-lg text-sm flex justify-between items-start">
                     <div>
                       <p>{n.nota}</p>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground/70 mt-0.5">
                         {n.author_name || "System"} • {new Date(n.fecha).toLocaleString()}
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() =>
-                        setConfirmAction({
-                          title: "Delete note",
-                          description: "Are you sure you want to delete this note?",
-                          confirmLabel: "Delete note",
-                          destructive: true,
-                          onConfirm: () => {
-                            handleDeleteExtraNote(n.id);
-                            setConfirmAction(null);
-                          },
-                        })
-                      }
+                      onClick={() => handleDeleteExtraNote(n.id)}
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No notes yet</p>
+                <p className="text-sm text-muted-foreground/50">No notes yet</p>
               )}
             </div>
           </div>
@@ -509,18 +496,6 @@ useEffect(() => {
           onDelete={handleDeleteAppointment}
         />
       )}
-
-      <ConfirmActionDialog
-        open={!!confirmAction}
-        onOpenChange={(open) => {
-          if (!open) setConfirmAction(null);
-        }}
-        title={confirmAction?.title || "Confirm action"}
-        description={confirmAction?.description || "Are you sure you want to continue?"}
-        confirmLabel={confirmAction?.confirmLabel || "Confirm"}
-        destructive={!!confirmAction?.destructive}
-        onConfirm={() => confirmAction?.onConfirm()}
-      />
     </div>
   );
 }

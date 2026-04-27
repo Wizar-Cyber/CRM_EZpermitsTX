@@ -181,10 +181,11 @@ leadStatesRouter.get("/by-state/:state", async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT case_number, incident_address, current_state, sent_to_delivery_date, 
+      `SELECT case_number, incident_address, current_state, sent_to_delivery_date,
               follow_up_start_date, last_contact_date, delivery_attempts, publicity_attempts
-       FROM houston_311_bcv 
-       WHERE current_state = $1 
+       FROM houston_311_bcv
+       WHERE current_state = $1
+         AND is_historical = FALSE
        ORDER BY updated_at DESC`,
       [state]
     );
@@ -219,6 +220,7 @@ leadStatesRouter.get("/in-delivery-no-contact", async (_req, res) => {
          LEFT JOIN routes r ON r.id = l.assigned_route_id
         WHERE l.current_state = 'IN_DELIVERY'
           AND l.contacted_at IS NULL
+          AND l.is_historical = FALSE
           AND NOT EXISTS (
             SELECT 1
               FROM clientes c
@@ -265,6 +267,7 @@ leadStatesRouter.get("/second-attempt-due", async (_req, res) => {
              AND l.second_attempt_due_at IS NOT NULL
              AND l.second_attempt_due_at <= NOW())
           )
+          AND l.is_historical = FALSE
           AND NOT EXISTS (
             SELECT 1
               FROM clientes c
@@ -304,6 +307,7 @@ leadStatesRouter.get("/closed", async (_req, res) => {
          FROM houston_311_bcv l
          LEFT JOIN routes r ON r.id = l.assigned_route_id
         WHERE l.current_state = 'CLOSED'
+          AND l.is_historical = FALSE
           AND NOT EXISTS (
             SELECT 1
               FROM clientes c
@@ -343,6 +347,7 @@ leadStatesRouter.get("/follow-up", async (_req, res) => {
          FROM houston_311_bcv l
          LEFT JOIN routes r ON r.id = l.assigned_route_id
         WHERE l.current_state = 'CONTACTED'
+          AND l.is_historical = FALSE
           AND NOT EXISTS (
             SELECT 1
               FROM clientes c
@@ -474,6 +479,7 @@ leadStatesRouter.patch("/:caseNumber/close", async (req, res) => {
       `UPDATE houston_311_bcv
           SET current_state = 'CLOSED',
               consulta = 'red',
+              manual_classification = 'red',
               updated_at = $2
         WHERE case_number = $1`,
       [caseNumber, now]
@@ -530,6 +536,7 @@ leadStatesRouter.patch("/:caseNumber/reopen", async (req, res) => {
       `UPDATE houston_311_bcv
           SET current_state = 'IN_DELIVERY',
               consulta = 'red',
+              manual_classification = 'red',
               contacted_at = NULL,
               contact_result = NULL,
               sent_to_delivery_date = COALESCE(sent_to_delivery_date, $2),

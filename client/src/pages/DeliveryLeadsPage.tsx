@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Check, Eye, MapPin, RotateCcw, UserPlus, X } from "lucide-react";
+import { ArrowUpDown, Check, Eye, MapPin, RotateCcw, Truck, UserPlus, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEditingRoute } from "@/features/contexts/EditingRouteContext";
 import { apiGet, apiPatch } from "@/lib/api";
@@ -567,9 +567,19 @@ export default function DeliveryLeadsPage() {
   );
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Delivery Leads</h1>
+    <div className="space-y-4">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-[#103360] to-[#1565c0] rounded-2xl px-6 py-5 text-white shadow-lg">
+        <div className="flex items-center gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <Truck className="w-4 h-4 opacity-70" />
+              <span className="text-xs font-medium opacity-70 uppercase tracking-widest">Field Operations</span>
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Delivery Leads</h2>
+            <p className="text-blue-200 text-sm mt-0.5">Manage leads in delivery, follow-up and second attempts</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">

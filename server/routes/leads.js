@@ -9,7 +9,7 @@ leadsRouter.get("/", async (req, res) => {
     const { q, status, filter, sort = "created_date_local", order = "desc" } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         case_number, incident_address, created_date_local, resolve_by_time,
         state_code_name, zip_code, created_date_utc, channel, extract_date,
         latest_case_notes, created_date, status, description, resolution,
@@ -17,7 +17,7 @@ leadsRouter.get("/", async (req, res) => {
         url, consulta, manual_classification,
         current_state, sent_to_delivery_date, second_attempt_due_at, assigned_route_id, contact_result
       FROM houston_311_bcv
-      WHERE 1=1
+      WHERE is_historical = FALSE
         AND NOT EXISTS (
           SELECT 1
             FROM clientes c
@@ -178,19 +178,33 @@ leadsRouter.patch("/:case_number/manual_classification", async (req, res) => {
     const cleanCase = case_number.trim();
 
     // normaliza valor permitido
-    const allowed = [null, "green", "yellow", "blue"];
+    const allowed = [null, "green", "yellow", "blue", "red"];
     if (manual_classification !== null) {
       manual_classification = String(manual_classification).toLowerCase();
     }
     if (!allowed.includes(manual_classification)) {
       return res.status(400).json({
-        error: "manual_classification must be one of: 'green','yellow','blue', or null",
+        error: "manual_classification must be one of: 'green','yellow','blue','red', or null",
       });
     }
 
+    // Si se clasifica como green, registramos la fecha; si es red, sincronizamos consulta
+    const classifiedAtExpr = manual_classification === "green"
+      ? ", classified_at = COALESCE(classified_at, NOW())"
+      : manual_classification === null
+        ? ", classified_at = NULL"
+        : "";
+
+    // Sincronizar campo consulta cuando se marca/desmarca como red
+    const consultaExpr = manual_classification === "red"
+      ? ", consulta = 'red'"
+      : manual_classification === null
+        ? ", consulta = NULL"
+        : "";
+
     const result = await pool.query(
       `UPDATE houston_311_bcv
-       SET manual_classification = $1
+       SET manual_classification = $1${classifiedAtExpr}${consultaExpr}
        WHERE TRIM(case_number) = TRIM($2)`,
       [manual_classification, cleanCase]
     );
@@ -212,5 +226,52 @@ leadsRouter.patch("/:case_number/manual_classification", async (req, res) => {
 });
 
 
+
+// 📍 PATCH: Enviar lead a reparto (delivery)
+// Flujo: green → IN_DELIVERY → (15-20 días sin contacto) → SECOND_ATTEMPT
+leadsRouter.patch("/:case_number/delivery", async (req, res) => {
+  const { case_number } = req.params;
+
+  try {
+    const cleanCase = case_number.trim();
+
+    // Verificar que el lead existe y está en estado válido para enviar
+    const check = await pool.query(
+      `SELECT current_state, delivery_attempts FROM houston_311_bcv WHERE TRIM(case_number) = TRIM($1) LIMIT 1`,
+      [cleanCase]
+    );
+
+    if (check.rowCount === 0) {
+      return res.status(404).json({ error: `Case '${cleanCase}' not found` });
+    }
+
+    const current = check.rows[0];
+    const attempts = (current.delivery_attempts ?? 0) + 1;
+
+    // Segundo intento programado a los 17 días (punto medio de 15-20)
+    const result = await pool.query(
+      `UPDATE houston_311_bcv
+       SET current_state          = 'IN_DELIVERY',
+           sent_to_delivery_date  = NOW(),
+           delivery_attempts      = $1,
+           second_attempt_due_at  = NOW() + INTERVAL '17 days'
+       WHERE TRIM(case_number) = TRIM($2)`,
+      [attempts, cleanCase]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: `Case '${cleanCase}' not found` });
+    }
+
+    return res.json({
+      success: true,
+      message: `Lead '${cleanCase}' enviado a reparto (intento #${attempts})`,
+      delivery_attempts: attempts,
+    });
+  } catch (err) {
+    console.error("❌ Error updating delivery state:", err);
+    res.status(500).json({ error: "Database update failed" });
+  }
+});
 
 export default leadsRouter;
