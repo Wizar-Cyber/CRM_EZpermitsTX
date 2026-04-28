@@ -224,7 +224,7 @@ export default function ClientsPage() {
       {/* ---------- KANBAN ---------- */}
       <div className="overflow-x-auto pb-2">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-4 min-w-max">
+          <div className="flex justify-center gap-4" style={{ minWidth: "min-content" }}>
             {(["pending", "visited", "purchased", "resolved"] as const).map((col) => {
               const colConfig = {
                 pending: {

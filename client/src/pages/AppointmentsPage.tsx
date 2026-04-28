@@ -8,6 +8,7 @@ import {
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay, startOfToday } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AppointmentModal } from "@/components/AppointmentModal";
 import {
@@ -253,38 +254,76 @@ useEffect(() => {
 
   // 🎨 Colores del calendario
   const eventPropGetter = useCallback((event: Appointment) => {
-    let backgroundColor = "#f3f4f6";
-    let borderColor = "#9ca3af";
-    switch (event.status) {
-      case "pending":
-        backgroundColor = "#fef3c7";
-        borderColor = "#f59e0b";
-        break;
-      case "visited":
-        backgroundColor = "#dbeafe";
-        borderColor = "#3b82f6";
-        break;
-      case "completed":
-        backgroundColor = "#dcfce7";
-        borderColor = "#16a34a";
-        break;
-      case "canceled":
-        backgroundColor = "#fee2e2";
-        borderColor = "#dc2626";
-        break;
-    }
+    const styles: Record<string, { bg: string; border: string; color: string }> = {
+      pending:   { bg: "#fffbeb", border: "#f59e0b", color: "#92400e" },
+      visited:   { bg: "#eff6ff", border: "#3b82f6", color: "#1e40af" },
+      completed: { bg: "#f0fdf4", border: "#16a34a", color: "#14532d" },
+      canceled:  { bg: "#fef2f2", border: "#dc2626", color: "#7f1d1d" },
+    };
+    const s = styles[event.status ?? ""] ?? { bg: "#f9fafb", border: "#9ca3af", color: "#374151" };
     return {
       style: {
-        backgroundColor,
-        color: "#111",
-        border: `2px solid ${borderColor}`,
+        backgroundColor: s.bg,
+        color: s.color,
+        borderLeftColor: s.border,
+        borderLeftWidth: "3px",
+        borderLeftStyle: "solid" as const,
+        borderTop: "none",
+        borderRight: "none",
+        borderBottom: "none",
         borderRadius: "6px",
-        padding: "2px 4px",
-        fontSize: "0.8rem",
+        padding: "2px 6px",
+        fontSize: "0.75rem",
         fontWeight: 500,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
       },
     };
   }, []);
+
+  const CustomToolbar = useCallback(({ date, onNavigate, label }: any) => (
+    <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onNavigate("PREV")}
+          className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onNavigate("TODAY")}
+          className="px-3 py-1 text-xs font-semibold rounded-lg border border-border/60 hover:bg-muted transition-colors cursor-pointer"
+        >
+          Today
+        </button>
+        <button
+          onClick={() => onNavigate("NEXT")}
+          className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      <span className="text-base font-bold tracking-tight text-foreground">{label}</span>
+      <div className="flex gap-1">
+        {[
+          { label: "Month", value: Views.MONTH },
+          { label: "Week", value: Views.WEEK },
+          { label: "Day", value: Views.DAY },
+        ].map(({ label: l, value: v }) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer border ${
+              view === v
+                ? "bg-[#103360] text-white border-[#103360]"
+                : "border-border/60 text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+  ), [view]);
 
   const summary = useMemo(() => {
     const counts = { pending: 0, visited: 0, completed: 0, canceled: 0 };
@@ -342,6 +381,92 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Calendar CSS overrides */}
+      <style>{`
+        .rbc-calendar { font-family: inherit; }
+        .rbc-header {
+          padding: 8px 4px;
+          font-weight: 600;
+          font-size: 0.75rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: #6b7280;
+          border-bottom: 1px solid hsl(var(--border) / 0.5) !important;
+          background: transparent;
+        }
+        .rbc-month-view {
+          border: none !important;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        .rbc-month-row {
+          border-top: 1px solid hsl(var(--border) / 0.4) !important;
+        }
+        .rbc-day-bg {
+          transition: background 0.15s;
+        }
+        .rbc-day-bg:hover {
+          background: hsl(var(--muted) / 0.5) !important;
+          cursor: pointer;
+        }
+        .rbc-off-range-bg {
+          background: hsl(var(--muted) / 0.2) !important;
+        }
+        .rbc-today {
+          background: #eff6ff !important;
+        }
+        .dark .rbc-today {
+          background: rgba(59,130,246,0.08) !important;
+        }
+        .rbc-date-cell {
+          padding: 4px 8px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: hsl(var(--foreground));
+        }
+        .rbc-date-cell.rbc-now {
+          font-weight: 800;
+          color: #1d4ed8;
+        }
+        .rbc-date-cell.rbc-now > a {
+          background: #1d4ed8;
+          color: #fff;
+          border-radius: 50%;
+          width: 22px;
+          height: 22px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .rbc-event {
+          border-radius: 6px !important;
+          padding: 2px 6px !important;
+          font-size: 0.75rem !important;
+          font-weight: 500 !important;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+          border-left-width: 3px !important;
+          border-top-width: 0 !important;
+          border-right-width: 0 !important;
+          border-bottom-width: 0 !important;
+        }
+        .rbc-event:focus { outline: none; box-shadow: 0 0 0 2px #1d4ed8 !important; }
+        .rbc-show-more {
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: #3b82f6;
+          padding: 0 6px;
+        }
+        .rbc-toolbar { display: none; }
+        .rbc-time-view { border: none !important; }
+        .rbc-time-header { border-bottom: 1px solid hsl(var(--border) / 0.5) !important; }
+        .rbc-time-content { border-top: 1px solid hsl(var(--border) / 0.5) !important; }
+        .rbc-timeslot-group { border-bottom: 1px solid hsl(var(--border) / 0.3) !important; }
+        .rbc-time-slot { font-size: 0.7rem; color: #9ca3af; }
+        .rbc-current-time-indicator { background: #3b82f6; height: 2px; }
+        .rbc-agenda-view table { border: none !important; }
+        .rbc-agenda-date-cell, .rbc-agenda-time-cell { font-size: 0.8rem; padding: 6px 10px !important; }
+      `}</style>
+
       {/* Calendar */}
       <Card className="rounded-2xl shadow-sm p-4 h-[75vh] overflow-hidden">
         <BigCalendar
@@ -359,6 +484,7 @@ useEffect(() => {
           titleAccessor={(event) =>
             `${event.title} ${event.status ? `(${event.status})` : ""}`
           }
+          components={{ toolbar: CustomToolbar }}
         />
       </Card>
 

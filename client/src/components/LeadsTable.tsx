@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Eye, MapPin, ArrowUpDown, Copy, Trash2, RotateCcw, X, Save, UserPlus } from "lucide-react"; 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -108,10 +108,10 @@ type NewClientData = {
 const NOOP = () => {}; 
 
 // ClientModal Component
-function ClientModal({ open, onOpenChange, clientData, onSuccess = NOOP }: { 
-  open: boolean; 
-  onOpenChange: (open: boolean) => void; 
-  clientData: NewClientData; 
+function ClientModal({ open, onOpenChange, clientData, onSuccess = NOOP }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clientData: NewClientData;
   onSuccess?: () => void;
 }) {
   const defaultClientState = useMemo(() => ({
@@ -122,34 +122,33 @@ function ClientModal({ open, onOpenChange, clientData, onSuccess = NOOP }: {
     source: "",
     case_number: clientData.case_number || "",
     description: clientData.description || "",
-    type: "new", 
-    status: "pending", 
+    type: "new",
+    status: "pending",
     priority: "medium",
   }), [clientData]);
-  
+
   const [client, setClient] = useState(defaultClientState);
   const [isLoading, setIsLoading] = useState(false);
 
-  useMemo(() => {
-    if (open) {
-      setClient(defaultClientState);
-    }
+  useEffect(() => {
+    if (open) setClient(defaultClientState);
   }, [open, defaultClientState]);
 
   const handleValidateCase = async () => {
     if (!client.case_number.trim()) return;
     setIsLoading(true);
     try {
-      const res = await apiGet(`/validate-case/${client.case_number}`); 
-      if ((res as any).valid && (res as any).description) {
-        setClient((prev) => ({ ...prev, description: (res as any).description }));
+      const res = await apiGet<{ valid?: boolean; description?: string; message?: string }>(
+        `/clients/validate-case/${client.case_number}`
+      );
+      if (res?.valid && res?.description) {
+        setClient((prev) => ({ ...prev, description: res.description || "" }));
         toast.success("Case found and description loaded.");
       } else {
         setClient((prev) => ({ ...prev, description: "" }));
-        toast.error((res as any).message || "Case not found.");
+        toast.error(res?.message || "Case not found.");
       }
     } catch (err: any) {
-      console.error("❌ Error validating case:", err);
       toast.error(`Error validating case: ${err.message}`);
       setClient((prev) => ({ ...prev, description: "" }));
     } finally {
@@ -161,12 +160,11 @@ function ClientModal({ open, onOpenChange, clientData, onSuccess = NOOP }: {
     if (!client.fullname.trim()) return toast.error("Full name required");
     setIsLoading(true);
     try {
-      await apiPost("/", client); 
+      await apiPost("/clients", client);
       toast.success(`Client ${client.fullname} created successfully.`);
       onSuccess();
       onOpenChange(false);
     } catch (err: any) {
-      console.error("❌ Error creating client:", err.message);
       toast.error(`Error creating client: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -175,93 +173,119 @@ function ClientModal({ open, onOpenChange, clientData, onSuccess = NOOP }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Evita autofocus para que no “pegue” la dirección en el buscador */}
       <DialogContent
-        className="sm:max-w-[500px]"
+        className="sm:max-w-[500px] border-border/50"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          {/* 🔧 Quitamos la X manual para evitar doble botón de cierre */}
-          <DialogTitle className="flex items-center justify-between">
-            Add Client
-          </DialogTitle>
-          <DialogDescription>
+        <DialogHeader className="pb-4 border-b border-border/50">
+          <DialogTitle className="text-2xl font-bold tracking-tight">👤 Add Client</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
             Create a new client record, pre-filled from Lead #{clientData.case_number}.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Evita submit por Enter dentro del modal */}
         <form onSubmit={(e) => e.preventDefault()}>
           <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Full name (Required)"
-              value={client.fullname}
-              onChange={(e) => setClient({ ...client, fullname: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-              required
-            />
-            <Input
-              placeholder="Email"
-              type="email"
-              value={client.email}
-              onChange={(e) => setClient({ ...client, email: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-            <Input
-              placeholder="Phone"
-              type="tel"
-              value={client.phone}
-              onChange={(e) => setClient({ ...client, phone: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-            <Input
-              placeholder="Address"
-              value={client.address}
-              onChange={(e) => setClient({ ...client, address: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-            <Input
-              placeholder="Source"
-              value={client.source}
-              onChange={(e) => setClient({ ...client, source: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
-
-            <div className="flex items-center gap-2">
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">Full Name *</label>
               <Input
-                placeholder="Case number"
-                value={client.case_number}
-                onChange={(e) =>
-                  setClient({ ...client, case_number: e.target.value })
-                }
+                placeholder="Enter full name"
+                value={client.fullname}
+                onChange={(e) => setClient({ ...client, fullname: e.target.value })}
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                required
+                className="border-border/60"
               />
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={handleValidateCase} 
-                disabled={isLoading || !client.case_number.trim()}
-              >
-                {isLoading ? "Validating..." : "Validate"}
-              </Button>
             </div>
 
-            <Textarea
-              placeholder="Description / Case Info (loaded from Lead or Case validation)"
-              value={client.description}
-              onChange={(e) => setClient({ ...client, description: e.target.value })}
-              className="bg-muted text-foreground min-h-[100px]"
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">📧 Email</label>
+                <Input
+                  placeholder="email@example.com"
+                  type="email"
+                  value={client.email}
+                  onChange={(e) => setClient({ ...client, email: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  className="border-border/60"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">📱 Phone</label>
+                <Input
+                  placeholder="+1 (555) 000-0000"
+                  type="tel"
+                  value={client.phone}
+                  onChange={(e) => setClient({ ...client, phone: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  className="border-border/60"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">📍 Address</label>
+              <Input
+                placeholder="Street address"
+                value={client.address}
+                onChange={(e) => setClient({ ...client, address: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                className="border-border/60"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">🔗 Source</label>
+              <Input
+                placeholder="Lead source"
+                value={client.source}
+                onChange={(e) => setClient({ ...client, source: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                className="border-border/60"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block"># Case Number (optional)</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Case #"
+                  value={client.case_number}
+                  onChange={(e) => setClient({ ...client, case_number: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  className="border-border/60 flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleValidateCase}
+                  disabled={isLoading || !client.case_number.trim()}
+                  className="text-xs"
+                >
+                  {isLoading ? "Validating..." : "Validate"}
+                </Button>
+              </div>
+            </div>
+
+            {client.description && (
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">📝 Case Details</label>
+                <Textarea
+                  readOnly
+                  value={client.description}
+                  className="bg-slate-50 dark:bg-slate-900/30 text-foreground border-border/60 text-sm max-h-28 resize-none"
+                />
+              </div>
+            )}
           </div>
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="pt-4 border-t border-border/50">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>
             <Button type="button" onClick={handleSubmit} disabled={isLoading || !client.fullname.trim()}>
-              <Save className="w-4 h-4 mr-1" /> {isLoading ? "Saving..." : "Save Client"}
+              <Save className="w-4 h-4 mr-2" /> {isLoading ? "Saving..." : "Save Client"}
             </Button>
           </DialogFooter>
         </form>
@@ -342,6 +366,8 @@ export function LeadsTable() {
   const [colorFilter, setColorFilter] = useState<string | null>(null);
   const [hasInspectorNoteFilter, setHasInspectorNoteFilter] = useState(false);
   const [minScoreFilter, setMinScoreFilter] = useState<number>(0);
+  const [inspectorDateFrom, setInspectorDateFrom] = useState<string>("");
+  const [inspectorDateTo, setInspectorDateTo] = useState<string>("");
     
   // --- States for the new Client Modal ---
   const [newClientModalOpen, setNewClientModalOpen] = useState(false);
@@ -593,8 +619,14 @@ export function LeadsTable() {
           l.incident_address?.toLowerCase().includes(searchLower)
       )
       .filter((l) => (colorFilter ? classifyLead(l) === colorFilter : true))
-      .filter((l) => hasInspectorNoteFilter ? !!(l.description_inspector || l.resolution_inspector) : true)
-      .filter((l) => minScoreFilter > 0 ? getLeadClassification(l).score >= minScoreFilter : true)
+      .filter((l) => {
+        const raw = (l as any).created_date_inspector;
+        if (!raw) return !inspectorDateFrom && !inspectorDateTo;
+        const d = raw.slice(0, 10); // "YYYY-MM-DD"
+        if (inspectorDateFrom && d < inspectorDateFrom) return false;
+        if (inspectorDateTo && d > inspectorDateTo) return false;
+        return true;
+      })
       .sort((a, b) => {
         if (sortField === "tag_score") {
           const aScore = getLeadClassification(a).score;
@@ -622,9 +654,19 @@ export function LeadsTable() {
     });
   };
 
-  const sortedLeads = useMemo(() => sortAndFilter(activeBase), [leads, sortField, sortDirection, searchTerm, colorFilter, hasInspectorNoteFilter, minScoreFilter]);
-  const sortedClassifiedLeads = useMemo(() => sortAndFilter(classifiedBase), [leads, sortField, sortDirection, searchTerm, colorFilter, hasInspectorNoteFilter, minScoreFilter]);
-  const sortedRedLeads = useMemo(() => sortAndFilter(redBase), [leads, sortField, sortDirection, searchTerm, colorFilter, hasInspectorNoteFilter, minScoreFilter]);
+  const sortedLeads = useMemo(() => sortAndFilter(activeBase), [leads, sortField, sortDirection, searchTerm, colorFilter, inspectorDateFrom, inspectorDateTo]);
+  const sortedClassifiedLeads = useMemo(() => sortAndFilter(classifiedBase), [leads, sortField, sortDirection, searchTerm, colorFilter, inspectorDateFrom, inspectorDateTo]);
+  const sortedRedLeads = useMemo(() => sortAndFilter(redBase), [leads, sortField, sortDirection, searchTerm, colorFilter, inspectorDateFrom, inspectorDateTo]);
+
+  // Mapa de dirección normalizada → cantidad de leads con esa dirección (todos los leads)
+  const addressCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of leads) {
+      const addr = (l.incident_address || "").trim().toLowerCase();
+      if (addr) map.set(addr, (map.get(addr) ?? 0) + 1);
+    }
+    return map;
+  }, [leads]);
 
   const toggleSelectAll = (checked: boolean, list: Lead[]) =>
     setSelected(checked ? list.map((l) => l.case_number) : []);
@@ -772,8 +814,9 @@ export function LeadsTable() {
       </div>
     );
 
-  // === Encabezado y filtros (compartidos por ambas pestañas) ===
-  const HeaderAndFilters = ({ list: _list }: { list: Lead[] }) => (
+  // === Encabezado y filtros — renderizado como función, no como componente ===
+  // (definirlo como componente dentro del render causa desmontaje en cada re-render → saltos)
+  const renderFilters = () => (
     <>
       <div className="flex flex-col md:flex-row justify-between gap-3 mb-3">
         <div className="relative max-w-xs w-full">
@@ -830,10 +873,11 @@ export function LeadsTable() {
     { key: "incident_address", label: "Address" },
     { key: "status", label: "Status" },
     { key: "tag_score", label: "Classification" },
-    { key: "resolution_inspector", label: "Inspector Resolution" },
+    { key: "created_date_inspector", label: "Inspector Date" },
   ];
 
-  const LeadsTableView = ({ list }: { list: Lead[] }) => (
+  // Renderizado como función, no como componente, para evitar desmontaje en cada re-render
+  const renderTable = (list: Lead[]) => (
     <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
       <table className="w-full">
         <thead>
@@ -870,9 +914,8 @@ export function LeadsTable() {
             const isResolved =
               (lead as any).consulta === "red" ||
               localStorage.getItem(`resolved_${lead.case_number}`) === "true";
-            const inspRes = (lead as any).resolution_inspector as string | null | undefined;
-            const inspResShort = inspRes
-              ? inspRes.replace(/\d{1,2}\/\d{1,2}\/\d{4}.*$/i, "").trim().slice(0, 80) + (inspRes.length > 80 ? "…" : "")
+            const inspDate = (lead as any).created_date_inspector
+              ? new Date((lead as any).created_date_inspector).toLocaleDateString()
               : "—";
             return (
               <tr
@@ -892,7 +935,20 @@ export function LeadsTable() {
                   />
                 </td>
                 <td className="p-4 text-center font-semibold text-sm text-slate-800 dark:text-slate-200" onClick={() => setModalLead(lead)}>{lead.case_number}</td>
-                <td className="p-4 text-center text-sm text-slate-500 dark:text-slate-400 max-w-[220px] truncate" onClick={() => setModalLead(lead)}>{lead.incident_address}</td>
+                <td className="p-4 text-center text-sm max-w-[220px] truncate" onClick={() => setModalLead(lead)}>
+                  {(() => {
+                    const addr = (lead.incident_address || "").trim().toLowerCase();
+                    const count = addressCountMap.get(addr) ?? 1;
+                    return count > 1 ? (
+                      <span title={`${count} cases at this address`} className="text-amber-600 dark:text-amber-400 font-medium">
+                        {lead.incident_address}
+                        <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-300 dark:border-amber-700">{count}</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 dark:text-slate-400">{lead.incident_address}</span>
+                    );
+                  })()}
+                </td>
                 <td className="p-4 text-center" onClick={() => setModalLead(lead)}>
                   <Badge className={`${statusColors[colorKey]} rounded-full px-2.5 py-0.5 text-[11px] font-medium`}>
                     {lead.status || "—"}
@@ -902,8 +958,8 @@ export function LeadsTable() {
                   <div className="font-medium text-slate-700 dark:text-slate-300">{auto.tag}</div>
                   <div className="text-xs text-slate-400 mt-0.5">Score: {auto.score}/10</div>
                 </td>
-                <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400 max-w-[200px]" onClick={() => setModalLead(lead)}>
-                  <span title={inspRes || ""} className="line-clamp-2">{inspResShort}</span>
+                <td className="p-4 text-center text-sm text-slate-500 dark:text-slate-400" onClick={() => setModalLead(lead)}>
+                  {inspDate}
                 </td>
                 <td className="p-4 text-center">
                   <div className="flex gap-1 justify-center">
@@ -981,18 +1037,18 @@ export function LeadsTable() {
         </div>
 
         <TabsContent value="activos" className="space-y-4">
-          <HeaderAndFilters list={sortedLeads} />
-          <LeadsTableView list={sortedLeads} />
+          {renderFilters()}
+          {renderTable(sortedLeads)}
         </TabsContent>
 
         <TabsContent value="clasificados" className="space-y-4">
-          <HeaderAndFilters list={sortedClassifiedLeads} />
-          <LeadsTableView list={sortedClassifiedLeads} />
+          {renderFilters()}
+          {renderTable(sortedClassifiedLeads)}
         </TabsContent>
 
         <TabsContent value="red" className="space-y-4">
-          <HeaderAndFilters list={sortedRedLeads} />
-          <LeadsTableView list={sortedRedLeads} />
+          {renderFilters()}
+          {renderTable(sortedRedLeads)}
         </TabsContent>
       </Tabs>
 

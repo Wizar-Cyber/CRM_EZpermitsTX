@@ -40,9 +40,6 @@ export function ClientCreateModal({ open, onOpenChange, clientData, onSuccess = 
       source: "",
       case_number: clientData.case_number || "",
       description: clientData.description || "",
-      type: "new",
-      status: "pending",
-      priority: "medium",
     }),
     [clientData]
   );
@@ -98,17 +95,17 @@ export function ClientCreateModal({ open, onOpenChange, clientData, onSuccess = 
         onOpenAutoFocus={(e: Event) => e.preventDefault()}
         onCloseAutoFocus={(e: Event) => e.preventDefault()}
       >
-        <DialogHeader className="border-b border-border/50 pb-4">
+        <DialogHeader className="pb-4 border-b border-border/50">
           <DialogTitle className="text-2xl font-bold tracking-tight">👤 Add Client</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground mt-2">
-            Create a new client record from Lead #{clientData.case_number}
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
+            Create a new client record, pre-filled from Lead #{clientData.case_number}.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={(e) => e.preventDefault()}>
-          <div className="grid gap-4 py-5">
+          <div className="grid gap-3 py-4">
             <div>
-              <label className="text-sm font-semibold mb-1.5 block">👤 Full Name *</label>
+              <label className="text-sm font-semibold mb-1.5 block">Full Name *</label>
               <Input
                 placeholder="Enter full name"
                 value={client.fullname}
@@ -119,7 +116,7 @@ export function ClientCreateModal({ open, onOpenChange, clientData, onSuccess = 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-semibold mb-1.5 block">📧 Email</label>
                 <Input
@@ -166,53 +163,41 @@ export function ClientCreateModal({ open, onOpenChange, clientData, onSuccess = 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-semibold mb-1.5 block"># Case Number</label>
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block"># Case Number (optional)</label>
+              <div className="flex gap-2">
                 <Input
                   placeholder="Case #"
                   value={client.case_number}
                   onChange={(e) => setClient({ ...client, case_number: e.target.value })}
                   onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                  className="border-border/60"
+                  className="border-border/60 flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleValidateCase}
+                  disabled={isLoading || !client.case_number.trim()}
+                  className="text-xs"
+                >
+                  {isLoading ? "Validating..." : "Validate"}
+                </Button>
+              </div>
+            </div>
+
+            {client.description && (
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">📝 Case Details</label>
+                <Textarea
+                  readOnly
+                  value={client.description}
+                  className="bg-slate-50 dark:bg-slate-900/30 text-foreground border-border/60 text-sm max-h-28 resize-none"
                 />
               </div>
-              <div>
-                <label className="text-sm font-semibold mb-1.5 block"># Case Number</label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Case #"
-                    value={client.case_number}
-                    onChange={(e) => setClient({ ...client, case_number: e.target.value })}
-                    onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                    className="border-border/60 flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleValidateCase}
-                    disabled={isLoading || !client.case_number.trim()}
-                    className="text-xs"
-                  >
-                    {isLoading ? "Validating..." : "Validate"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold mb-1.5 block">📝 Description / Case Info</label>
-              <Textarea
-                placeholder="Details loaded from Lead or Case validation"
-                value={client.description}
-                onChange={(e) => setClient({ ...client, description: e.target.value })}
-                className="bg-slate-50 dark:bg-slate-900/30 text-foreground min-h-[100px] border-border/60"
-                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-              />
-            </div>
+            )}
           </div>
 
-          <DialogFooter className="mt-6 pt-4 border-t border-border/50 flex justify-between items-center">
+          <DialogFooter className="pt-4 border-t border-border/50 flex justify-between items-center">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>
