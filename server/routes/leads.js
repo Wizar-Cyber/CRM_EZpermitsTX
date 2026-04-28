@@ -1,7 +1,10 @@
 import express from "express";
 import pool from "../db.js";
+import { authenticate, requireAdmin, requireApproved } from "../middleware/auth.js";
 
 export const leadsRouter = express.Router();
+
+leadsRouter.use(authenticate, requireApproved);
 
 // 📍 GET: Todos los leads (con filtros y orden)
 leadsRouter.get("/", async (req, res) => {
@@ -98,8 +101,8 @@ leadsRouter.get("/:id", async (req, res) => {
   }
 });
 
-// 📍 DELETE: Eliminar un lead por ID
-leadsRouter.delete("/:id", async (req, res) => {
+// 📍 DELETE: Eliminar un lead por ID (solo admins)
+leadsRouter.delete("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const query = "DELETE FROM houston_311_bcv WHERE case_number = $1";

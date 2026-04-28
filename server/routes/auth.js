@@ -4,12 +4,30 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import rateLimit from 'express-rate-limit';
 import pool from '../db.js';
 import { body, validationResult } from 'express-validator';
 import { authenticate } from '../middleware/auth.js';
 import { writeAuditEvent } from '../utils/audit.js';
 
 const router = express.Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many login attempts, try again in 15 minutes.' },
+  skipSuccessfulRequests: true,
+});
+
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many password reset requests, try again in 1 hour.' },
+});
 const STRONG_PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
 const RESET_TOKEN_TTL_MINUTES = Number.parseInt(process.env.RESET_TOKEN_TTL_MINUTES || '30', 10);
@@ -238,6 +256,7 @@ router.post(
    ============================ */
 router.post(
   '/login',
+  loginLimiter,
   body('email').isEmail().normalizeEmail(),
   body('password').notEmpty(),
   async (req, res) => {
@@ -456,6 +475,7 @@ router.post('/sessions/revoke-all', authenticate, async (req, res) => {
    ============================ */
 router.post(
   '/forgot-password',
+  resetLimiter,
   body('email').isEmail().normalizeEmail(),
   async (req, res) => {
     const errors = validationResult(req);
@@ -594,34 +614,29 @@ router.post(
       const salt = await bcrypt.genSalt(10);
       const password_hash = await bcrypt.hash(newPassword, salt);
 
-      await pool.query('BEGIN');
+      const txClient = await pool.connect();
       try {
-        await pool.query(
-          `UPDATE users
-              SET password_hash = $1,
-                  updated_at = NOW()
-            WHERE id = $2`,
+        await txClient.query('BEGIN');
+        await txClient.query(
+          `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
           [password_hash, user.id]
         );
-
-        await pool.query(
-          `UPDATE password_reset_tokens
-              SET used_at = NOW()
-            WHERE token_hash = $1`,
+        await txClient.query(
+          `UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`,
           [tokenHash]
         );
-
-        await pool.query(
+        await txClient.query(
           `DELETE FROM password_reset_tokens
             WHERE LOWER(email) = LOWER($1)
               AND (used_at IS NOT NULL OR expires_at < NOW())`,
           [tokenRow.email]
         );
-
-        await pool.query('COMMIT');
+        await txClient.query('COMMIT');
       } catch (txErr) {
-        await pool.query('ROLLBACK');
+        await txClient.query('ROLLBACK');
         throw txErr;
+      } finally {
+        txClient.release();
       }
 
       return res.json({ success: true, message: 'Password updated successfully.' });

@@ -1,7 +1,10 @@
 import express from "express";
 import pool from "../db.js";
+import { authenticate, requireApproved } from "../middleware/auth.js";
 
 export const analyticsRouter = express.Router();
+
+analyticsRouter.use(authenticate, requireApproved);
 
 // Middleware de validación
 const validateAnalyticsQuery = (req, res, next) => {

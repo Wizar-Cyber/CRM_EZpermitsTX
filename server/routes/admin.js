@@ -2,8 +2,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import pool from "../db.js";
-import { authenticate } from "../middleware/auth.js";
-import { requireAdmin } from "../middleware/roles.js";
+import { authenticate, requireAdmin } from "../middleware/auth.js";
 import { ensureAuditEventsTable, writeAuditEvent } from "../utils/audit.js";
 
 const router = express.Router();

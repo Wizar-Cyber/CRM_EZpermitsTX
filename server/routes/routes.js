@@ -1,8 +1,11 @@
 import express from "express";
 import pool from "../db.js";
 import { writeAuditEvent } from "../utils/audit.js";
+import { authenticate, requireApproved } from "../middleware/auth.js";
 
 export const router = express.Router();
+
+router.use(authenticate, requireApproved);
 
 const SECOND_ATTEMPT_DAYS = Number.parseInt(process.env.SECOND_ATTEMPT_DAYS || "15", 10);
 const DELIVERY_ELIGIBLE_STATES = [
